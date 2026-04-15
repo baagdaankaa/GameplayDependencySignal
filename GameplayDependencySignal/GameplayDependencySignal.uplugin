@@ -1,0 +1,23 @@
+﻿{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Gameplay Dependency Signal",
+	"Description": "",
+	"Category": "Gameplay",
+	"CreatedBy": "Bohdan Sofronii",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"SupportURL": "https://github.com/baagdaankaa/GameplayDependencySignal/issues",
+	"EnabledByDefault": true,
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "DependencySignalRuntime",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	]
+}
