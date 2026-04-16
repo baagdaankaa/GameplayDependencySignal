@@ -22,6 +22,8 @@ public:
 	bool IsValidDependency(const FGameplayTag& Tag, const UObject* SourceObject = nullptr) const;
 	bool IsValidDependency(const FGameplayTagContainer& Tags, const UObject* SourceObject = nullptr) const;
 
+	int32 GetListenersNum() const;
+
 	void Validate(const FGameplayTag& Tag, const bool bIsValid, const UObject* SourceObject = nullptr,
 		const bool bForceRetrigger = false) const;
 
