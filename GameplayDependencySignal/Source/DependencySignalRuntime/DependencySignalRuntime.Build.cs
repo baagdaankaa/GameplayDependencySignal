@@ -19,6 +19,7 @@ public class DependencySignalRuntime : ModuleRules
             {
                 "CoreUObject",
                 "Engine",
+                "DeveloperSettings",
             }
         );
     }
