@@ -20,7 +20,7 @@ FDependencySignalDispatcher::~FDependencySignalDispatcher()
 
 FDependencySignalDispatcher::FListenerHandle FDependencySignalDispatcher::Register(FDependencySignalRequest&& Request)
 {
-	if (!IsValidDependency(Request.DependencyTags))
+	if (!IsValidDependencyTags(Request.DependencyTags))
 	{
 		DS_UE_LOG(Warning, TEXT("The operation failed due to invalid tags [%s]"), *Request.DependencyTags.ToString());
 		return FListenerHandle();
@@ -96,7 +96,7 @@ void FDependencySignalDispatcher::Reset()
 bool FDependencySignalDispatcher::IsValidDependencyTags(const FGameplayTagContainer& Tags) const
 {
 	return Algo::AllOf(Tags, [this](const FGameplayTag& Tag) {
-		return IsValidDependency(Tag);
+		return IsValidDependencyTag(Tag);
 	});
 }
 
