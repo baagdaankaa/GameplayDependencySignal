@@ -44,6 +44,16 @@ void UDependencySignalSubsystem::Unregister(FDependencySignalListenerHandle& Lis
 	}
 }
 
+bool UDependencySignalSubsystem::IsValidDependency(const FGameplayTag& Tag, const UObject* SourceObject) const
+{
+	return Dispatcher.IsValid() && Dispatcher->IsValidDependency(Tag, SourceObject);
+}
+
+bool UDependencySignalSubsystem::IsValidDependency(const FGameplayTagContainer& Tags, const UObject* SourceObject) const
+{
+	return Dispatcher.IsValid() && Dispatcher->IsValidDependency(Tags, SourceObject);
+}
+
 void UDependencySignalSubsystem::Validate(
 	const FGameplayTag& Tag, const bool bIsValid, const UObject* SourceObject, const bool bForceRetrigger) const
 {

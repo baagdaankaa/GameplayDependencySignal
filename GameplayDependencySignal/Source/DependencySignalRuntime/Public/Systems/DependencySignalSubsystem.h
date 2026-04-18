@@ -12,6 +12,7 @@ class FDependencySignalDispatcher;
 
 struct FDependencySignalRequest;
 struct FDependencySignalListenerHandle;
+struct FGameplayTagContainer;
 struct FGameplayTag;
 
 UCLASS(MinimalAPI)
@@ -25,6 +26,9 @@ public:
 
 	UE_API FDependencySignalListenerHandle Register(FDependencySignalRequest&& Request) const;
 	UE_API void Unregister(FDependencySignalListenerHandle& ListenerHandle) const;
+
+	UE_API bool IsValidDependency(const FGameplayTag& Tag, const UObject* SourceObject = nullptr) const;
+	UE_API bool IsValidDependency(const FGameplayTagContainer& Tags, const UObject* SourceObject = nullptr) const;
 
 	UE_API void Validate(const FGameplayTag& Tag, const bool bIsValid, const UObject* SourceObject = nullptr,
 		const bool bForceRetrigger = false) const;
