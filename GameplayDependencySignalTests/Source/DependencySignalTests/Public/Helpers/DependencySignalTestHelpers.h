@@ -40,6 +40,29 @@ namespace DependencySignal::Tests
 		static FNativeGameplayTags Tags;
 	};
 
+	struct FTestDependency
+	{
+		FString GetTagString() const;
+
+		FGameplayTag Tag;
+		bool IsValid = false;
+	};
+
+	struct FTestDependencyConfig
+	{
+		FString GetRegistrationTagsString() const;
+		FString GetValidationsSequenceString() const;
+
+		void Reset();
+		bool IsValid() const;
+
+		FGameplayTagContainer RegistrationTags;
+
+		TArray<FTestDependency> ValidationQueue;
+
+		TOptional<bool> bFinalValidationResult;
+	};
+
 } // namespace DependencySignal::Tests
 
 UCLASS()
