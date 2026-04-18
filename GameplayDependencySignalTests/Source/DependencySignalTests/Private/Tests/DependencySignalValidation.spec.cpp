@@ -45,7 +45,7 @@ void FDependencySignalValidationSpec::Define()
 	Describe("Initial dependency", [this] {
 		It("Root tag should be VALID from the beginning", [&]() {
 			AddInfo(FString::Printf(TEXT("Register root tag")));
-			Dispatcher->Register(FDependencySignalRequest().AddTag(FNativeGameplayTags::Get().TestRoot));
+			Dispatcher->Register(FDependencySignalRequest().AddTag(FNativeGameplayTags::Get().TestRoot).End());
 			TestTrue("Root valid", Dispatcher->IsValidDependency(FNativeGameplayTags::Get().TestRoot));
 		});
 
@@ -54,7 +54,7 @@ void FDependencySignalValidationSpec::Define()
 				[this, CapturedTag = Tag]() {
 					AddInfo(
 						FString::Printf(TEXT("Register listener with [%s] tag"), *CapturedTag.GetTagName().ToString()));
-					Dispatcher->Register(FDependencySignalRequest().AddTag(CapturedTag));
+					Dispatcher->Register(FDependencySignalRequest().AddTag(CapturedTag).End());
 					TestValidation(CapturedTag, false, nullptr);
 				});
 		};
@@ -469,7 +469,8 @@ void FDependencySignalValidationSpec::LaunchConfigIt(FTestDependencyConfig&& Con
 					.AddTags(CapturedConfig.RegistrationTags)
 					.BindLambda([&bCallbackValidationResult](const bool bIsValid, UObject*) {
 						bCallbackValidationResult = bIsValid;
-					}));
+					})
+					.End());
 			TestTrue(TEXT("bCallbackValidationResult should be set"), bCallbackValidationResult.IsSet());
 
 			for (const FTestDependency& Entry : CapturedConfig.ValidationQueue)

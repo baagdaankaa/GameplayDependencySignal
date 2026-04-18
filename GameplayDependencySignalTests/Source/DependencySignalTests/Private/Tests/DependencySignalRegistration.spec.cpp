@@ -52,14 +52,16 @@ void FDependencySignalRegistrationSpec::Define()
 
 			It("Should be VALID with one tag", [this]() {
 				AddInfo("Register dependency listener");
-				Handle = Dispatcher->Register(FDependencySignalRequest().AddTag(FNativeGameplayTags::Get().Test_A));
+				Handle =
+					Dispatcher->Register(FDependencySignalRequest().AddTag(FNativeGameplayTags::Get().Test_A).End());
 			});
 
 			It("Should be VALID with two tags using single tag", [this]() {
 				AddInfo("Register dependency listener");
 				Handle = Dispatcher->Register(FDependencySignalRequest()
 						.AddTag(FNativeGameplayTags::Get().Test_A)
-						.AddTag(FNativeGameplayTags::Get().Test_B));
+						.AddTag(FNativeGameplayTags::Get().Test_B)
+						.End());
 			});
 
 			It("Should be VALID with two tags using tag container", [this]() {
@@ -68,14 +70,15 @@ void FDependencySignalRegistrationSpec::Define()
 				Container.AddTag(FNativeGameplayTags::Get().Test_B);
 
 				AddInfo("Register dependency listener");
-				Handle = Dispatcher->Register(FDependencySignalRequest().AddTags(Container));
+				Handle = Dispatcher->Register(FDependencySignalRequest().AddTags(Container).End());
 			});
 		});
 
 		Describe("After unregistration", [this] {
 			BeforeEach([this]() {
 				AddInfo("Register dependency listener");
-				Handle = Dispatcher->Register(FDependencySignalRequest().AddTag(FNativeGameplayTags::Get().Test_A));
+				Handle =
+					Dispatcher->Register(FDependencySignalRequest().AddTag(FNativeGameplayTags::Get().Test_A).End());
 				TestTrue("Listener handle valid", Handle.IsValid());
 			});
 
@@ -99,7 +102,8 @@ void FDependencySignalRegistrationSpec::Define()
 			AddInfo("Register dependency listener");
 			FDependencySignalListenerHandle Handle = Dispatcher->Register(FDependencySignalRequest()
 					.AddTag(FNativeGameplayTags::Get().Test_A)
-					.AddTag(FNativeGameplayTags::Get().Test_B));
+					.AddTag(FNativeGameplayTags::Get().Test_B)
+					.End());
 			TestTrue("Listener handle valid", Handle.IsValid());
 
 			AddInfo("Unregister listener handle through Handle");
@@ -131,8 +135,10 @@ void FDependencySignalRegistrationSpec::Define()
 
 		It("Should be VALID registration with one tag", [this]() {
 			AddInfo("Register dependency listener");
-			Handle = Dispatcher->Register(
-				FDependencySignalRequest().AddTag(FNativeGameplayTags::Get().Test_A).AddSource(SourceObject.Get()));
+			Handle = Dispatcher->Register(FDependencySignalRequest()
+					.AddTag(FNativeGameplayTags::Get().Test_A)
+					.AddSource(SourceObject.Get())
+					.End());
 		});
 
 		It("Should be VALID registration with two tags", [this]() {
@@ -140,7 +146,8 @@ void FDependencySignalRegistrationSpec::Define()
 			Handle = Dispatcher->Register(FDependencySignalRequest()
 					.AddTag(FNativeGameplayTags::Get().Test_A)
 					.AddTag(FNativeGameplayTags::Get().Test_B)
-					.AddSource(SourceObject.Get()));
+					.AddSource(SourceObject.Get())
+					.End());
 		});
 
 		It("Should be VALID registration with three tags", [this]() {
@@ -149,7 +156,8 @@ void FDependencySignalRegistrationSpec::Define()
 					.AddTag(FNativeGameplayTags::Get().Test_A)
 					.AddTag(FNativeGameplayTags::Get().Test_B)
 					.AddTag(FNativeGameplayTags::Get().Test_C)
-					.AddSource(SourceObject.Get()));
+					.AddSource(SourceObject.Get())
+					.End());
 		});
 	});
 }
