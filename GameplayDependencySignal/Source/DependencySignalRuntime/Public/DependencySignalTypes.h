@@ -20,78 +20,83 @@ struct UE_API FDependencySignalRequest
 
 	FDependencySignalRequest() = default;
 
-	FDependencySignalRequest&& AddTag(const FGameplayTag& Tag);
-	FDependencySignalRequest&& AddTags(const FGameplayTagContainer& TagContainer);
-	FDependencySignalRequest&& AddSource(const UObject* InSourceObject);
+	FDependencySignalRequest& AddTag(const FGameplayTag& Tag);
+	FDependencySignalRequest& AddTags(const FGameplayTagContainer& TagContainer);
+	FDependencySignalRequest& AddSource(const UObject* InSourceObject);
 
 	template <typename... VarTypes>
-	FDependencySignalRequest&& BindStatic(FDependencyStateEvent::TFuncPtr<VarTypes...> Func, VarTypes&&... Vars)
+	FDependencySignalRequest& BindStatic(FDependencyStateEvent::TFuncPtr<VarTypes...> Func, VarTypes&&... Vars)
 	{
 		OnDependencyStateChanged.BindStatic(Func, Vars...);
-		return MoveTemp(*this);
+		return *this;
 	}
 
 	template <typename UserClass, ESPMode Mode, typename FunctorType, typename... VarTypes>
-	FDependencySignalRequest&& BindSPLambda(
+	FDependencySignalRequest& BindSPLambda(
 		const TSharedRef<UserClass, Mode>& InUserObjectRef, FunctorType&& InFunctor, VarTypes&&... Vars)
 	{
 		OnDependencyStateChanged.BindSPLambda(
 			InUserObjectRef, Forward<FunctorType>(InFunctor), Forward<VarTypes>(Vars)...);
-		return MoveTemp(*this);
+		return *this;
 	}
 
 	template <typename UserClass, typename... VarTypes>
-	FDependencySignalRequest&& BindRaw(
+	FDependencySignalRequest& BindRaw(
 		UserClass* InUserObject, FDependencyStateEvent::TMethodPtr<UserClass, VarTypes...> Func, VarTypes&&... Vars)
 	{
 		OnDependencyStateChanged.BindRaw(InUserObject, Func, Vars...);
-		return MoveTemp(*this);
+		return *this;
 	}
 
 	template <typename UserClass, ESPMode Mode, typename... VarTypes>
-	FDependencySignalRequest&& BindSP(const TSharedRef<UserClass, Mode>& InUserObjectRef,
+	FDependencySignalRequest& BindSP(const TSharedRef<UserClass, Mode>& InUserObjectRef,
 		FDependencyStateEvent::TMethodPtr<UserClass, VarTypes...> Func, VarTypes&&... Vars)
 	{
 		OnDependencyStateChanged.BindSP(InUserObjectRef, Func, Vars...);
-		return MoveTemp(*this);
+		return *this;
 	}
 
 	template <typename UserClass, typename... VarTypes>
-	FDependencySignalRequest&& BindSP(const UserClass* InUserObject,
+	FDependencySignalRequest& BindSP(const UserClass* InUserObject,
 		FDependencyStateEvent::TMethodPtr<UserClass, VarTypes...> Func, VarTypes&&... Vars)
 	{
 		OnDependencyStateChanged.BindSP(InUserObject, Func, Vars...);
-		return MoveTemp(*this);
+		return *this;
 	}
 
 	template <typename UObjectTemplate, typename... VarTypes>
-	FDependencySignalRequest&& BindUFunction(
+	FDependencySignalRequest& BindUFunction(
 		const UObjectTemplate* InUserObject, const FName& InFunctionName, VarTypes&&... Vars)
 	{
 		OnDependencyStateChanged.BindUFunction(InUserObject, InFunctionName, Vars...);
-		return MoveTemp(*this);
+		return *this;
 	}
 
 	template <typename UserClass, typename... VarTypes>
-	FDependencySignalRequest&& BindUObject(
+	FDependencySignalRequest& BindUObject(
 		UserClass* InUserObject, FDependencyStateEvent::TMethodPtr<UserClass, VarTypes...> Func, VarTypes... Vars)
 	{
 		OnDependencyStateChanged.BindUObject(InUserObject, Func, Vars...);
-		return MoveTemp(*this);
+		return *this;
 	}
 
 	template <typename LambdaType, typename... VarTypes>
-	FDependencySignalRequest&& BindLambda(LambdaType&& InCallable, VarTypes&&... Vars)
+	FDependencySignalRequest& BindLambda(LambdaType&& InCallable, VarTypes&&... Vars)
 	{
 		OnDependencyStateChanged.BindLambda(Forward<LambdaType>(InCallable), Forward<VarTypes>(Vars)...);
-		return MoveTemp(*this);
+		return *this;
 	}
 
 	template <typename LambdaType, typename... VarTypes>
-	FDependencySignalRequest&& BindWeakLambda(const UObject* InUserObject, LambdaType&& InCallable, VarTypes&&... Vars)
+	FDependencySignalRequest& BindWeakLambda(const UObject* InUserObject, LambdaType&& InCallable, VarTypes&&... Vars)
 	{
 		OnDependencyStateChanged.BindWeakLambda(
 			InUserObject, Forward<LambdaType>(InCallable), Forward<VarTypes>(Vars)...);
+		return *this;
+	}
+
+	FDependencySignalRequest&& End()
+	{
 		return MoveTemp(*this);
 	}
 

@@ -4,22 +4,22 @@
 
 #include "DependencySignalDispatcher.h"
 
-FDependencySignalRequest&& FDependencySignalRequest::AddTag(const FGameplayTag& Tag)
+FDependencySignalRequest& FDependencySignalRequest::AddTag(const FGameplayTag& Tag)
 {
 	DependencyTags.AddTag(Tag);
-	return MoveTemp(*this);
+	return *this;
 }
 
-FDependencySignalRequest&& FDependencySignalRequest::AddTags(const FGameplayTagContainer& TagContainer)
+FDependencySignalRequest& FDependencySignalRequest::AddTags(const FGameplayTagContainer& TagContainer)
 {
 	DependencyTags.AppendTags(TagContainer);
-	return MoveTemp(*this);
+	return *this;
 }
 
-FDependencySignalRequest&& FDependencySignalRequest::AddSource(const UObject* InSourceObject)
+FDependencySignalRequest& FDependencySignalRequest::AddSource(const UObject* InSourceObject)
 {
 	SourceObject = TWeakObjectPtr(InSourceObject);
-	return MoveTemp(*this);
+	return *this;
 }
 
 bool FDependencySignalListenerHandle::Unregister()
