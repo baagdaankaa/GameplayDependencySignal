@@ -19,7 +19,15 @@ public:
 
 	const FGameplayTagContainer& GetRootTags() const;
 
+	FORCEINLINE bool ShouldCreateSubsystem() const
+	{
+		return bShouldSubsystemBeCreated;
+	}
+
 private:
+	UPROPERTY(Config, EditAnywhere)
+	bool bShouldSubsystemBeCreated = true;
+
 	UPROPERTY(Config, EditAnywhere, meta = (Categories = "DependencySignal"))
 	FGameplayTagContainer RootTags;
 };
