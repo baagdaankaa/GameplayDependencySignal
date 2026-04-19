@@ -9,6 +9,10 @@
 namespace DependencySignalTags
 {
 	UE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Root);
+
+	UE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Controller);
+	UE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Controller_Pawn);
+	UE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Controller_PlayerState);
 } // namespace DependencySignalTags
 
 #undef UE_API

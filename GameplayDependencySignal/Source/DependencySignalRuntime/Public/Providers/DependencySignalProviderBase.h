@@ -36,6 +36,10 @@ public:
 	UFUNCTION(BlueprintNativeEvent, Category = "Dependency Signal | Provider")
 	UObject* Provide(const FGameplayTag& Tag, UObject* SourceObject) const;
 	virtual UObject* Provide_Implementation(const FGameplayTag& Tag, UObject* SourceObject) const;
+
+protected:
+	UFUNCTION(BlueprintPure, Category = "Dependency Signal | Provider")
+	AController* GetControllerFrom(UObject* SourceObject) const;
 };
 
 #undef UE_API
