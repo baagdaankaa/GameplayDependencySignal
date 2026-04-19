@@ -43,6 +43,9 @@ public:
 	template <class T = UObject>
 	UE_API T* GetDependency(const FGameplayTag& Tag, UObject* SourceObject = nullptr) const;
 
+	template <typename T>
+	UE_API typename TDependencySignalTraits<T>::ReturnType GetDependency(UObject* SourceObject = nullptr) const;
+
 protected:
 	//~ Begin of UWorldSubsystem Interface
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
@@ -61,6 +64,17 @@ template <class T>
 T* UDependencySignalSubsystem::GetDependency(const FGameplayTag& Tag, UObject* SourceObject) const
 {
 	return Cast<T>(GetDependency(Tag, SourceObject));
+}
+
+template <typename T>
+typename TDependencySignalTraits<T>::ReturnType UDependencySignalSubsystem::GetDependency(UObject* SourceObject) const
+{
+	if (Resolver.IsValid())
+	{
+		return Resolver->GetDependency<T>(SourceObject);
+	}
+
+	return nullptr;
 }
 
 #undef UE_API

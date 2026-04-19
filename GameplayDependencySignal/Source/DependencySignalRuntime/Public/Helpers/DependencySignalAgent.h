@@ -3,13 +3,14 @@
 #pragma once
 
 #include "DependencySignalTypes.h"
-
-#define UE_API DEPENDENCYSIGNALRUNTIME_API
+#include "Providers/DependencySignalProviderTraits.h"
 
 class UDependencySignalSubsystem;
 
 struct FGameplayTagContainer;
 struct FGameplayTag;
+
+#define UE_API DEPENDENCYSIGNALRUNTIME_API
 
 class UE_API FDependencySignalAgent
 {
@@ -63,6 +64,10 @@ protected:
 	T* GetDependencyObject(
 		const UObject* ContextualObject, const FGameplayTag& Tag, UObject* SourceObject = nullptr) const;
 
+	template <typename T>
+	typename TDependencySignalTraits<T>::ReturnType GetDependency(
+		const UObject* ContextualObject, UObject* SourceObject = nullptr) const;
+
 private:
 	const UDependencySignalSubsystem* GetSubsystem(const UObject* ContextualObject) const;
 
@@ -74,6 +79,24 @@ T* FDependencySignalAgent::GetDependencyObject(
 	const UObject* ContextualObject, const FGameplayTag& Tag, UObject* SourceObject) const
 {
 	return Cast<T>(GetDependencyObject(ContextualObject, Tag, SourceObject));
+}
+
+template <typename T>
+typename TDependencySignalTraits<T>::ReturnType FDependencySignalAgent::GetDependency(
+	const UObject* ContextualObject, UObject* SourceObject) const
+{
+	static_assert(THasDependencySignalTraits<T>::Value,
+		"T must have a valid TDependencySignalTraits specialization with ReturnType and GetTag() method. "
+		"Use DECLARE_DEPENDENCY_SIGNAL_TRAIT macro or specialize manually.");
+
+	using ReturnType = typename TDependencySignalTraits<T>::ReturnType;
+
+	static_assert(
+		TIsPointer<ReturnType>::Value && TIsDerivedFrom<typename TRemovePointer<ReturnType>::Type, UObject>::Value,
+		"ReturnType must be a pointer to UObject-derived class");
+
+	const FGameplayTag& Tag = TDependencySignalTraits<T>::GetTag();
+	return GetDependencyObject<typename TRemovePointer<ReturnType>::Type>(ContextualObject, Tag, SourceObject);
 }
 
 #undef UE_API
