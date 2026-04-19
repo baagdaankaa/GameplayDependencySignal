@@ -10,19 +10,61 @@ struct FGameplayTag;
 
 #define UE_API DEPENDENCYSIGNALRUNTIME_API
 
+/**
+ * Resolver class for managing and using dependency signal providers.
+ *
+ * The provider resolver maintains a collection of provider instances and uses them
+ * to resolve dependencies based on gameplay tags.
+ */
 class UE_API FDependencySignalProviderResolver
 {
 public:
+	/**
+	 * Constructs the resolver with a list of provider classes.
+	 *
+	 * Instantiates one instance of each provider class and stores them for later use.
+	 *
+	 * @param ProviderClasses	Array of provider classes to instantiate.
+	 */
 	FDependencySignalProviderResolver(const TArray<TSubclassOf<UDependencySignalProviderBase>>& ProviderClasses);
+
+	/**
+	 * Constructs the resolver with a list of provider classes and a world context.
+	 *
+	 * Instantiates one instance of each provider class within the given world.
+	 *
+	 * @param ProviderClasses	Array of provider classes to instantiate.
+	 * @param InWorld			The world to use as the context for provider instantiation.
+	 */
 	FDependencySignalProviderResolver(
 		const TArray<TSubclassOf<UDependencySignalProviderBase>>& ProviderClasses, UWorld* InWorld);
 
+	/** Destructor that cleans up provider instances. */
 	~FDependencySignalProviderResolver();
 
+	/** Updates the world context for provider operations. */
 	void SetWorld(UWorld* InWorld);
 
+	/**
+	 * Retrieves a dependency object using a gameplay tag.
+	 *
+	 * Queries each provider in order until one indicates it can handle the tag.
+	 * Returns the object provided by the first capable provider.
+	 *
+	 * @param Tag				The gameplay tag identifying the dependency.
+	 * @param SourceObject		Optional source object for provider resolution.
+	 * @return					The dependency object, or nullptr if no provider can handle it.
+	 */
 	UObject* GetDependency(const FGameplayTag& Tag, UObject* SourceObject = nullptr) const;
 
+	/**
+	 * Retrieves and casts a dependency object to a specific type using a gameplay tag.
+	 *
+	 * @tparam T				The C++ type to cast the dependency to.
+	 * @param Tag				The gameplay tag identifying the dependency.
+	 * @param SourceObject		Optional source object for provider resolution.
+	 * @return					The dependency cast to type T, or nullptr if not found.
+	 */
 	template <class T = UObject>
 	T* GetDependency(const FGameplayTag& Tag, UObject* SourceObject = nullptr) const;
 
@@ -43,9 +85,13 @@ public:
 	typename TDependencySignalTraits<T>::ReturnType GetDependency(UObject* SourceObject = nullptr) const;
 
 private:
-	/** Weak reference to the world context used for dependency resolution. */
+	/**
+	 * Weak pointer to the world used for dependency resolution. When no SourceObject is provided to GetDependency(),
+	 * this World pointer is used as a fallback SourceObject for local session dependency resolution.
+	 */
 	TWeakObjectPtr<UWorld> World;
 
+	/** Array of weak pointers to provider's CDO. */
 	TArray<TWeakObjectPtr<UDependencySignalProviderBase>> Providers;
 };
 

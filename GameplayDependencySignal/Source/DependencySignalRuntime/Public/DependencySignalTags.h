@@ -6,6 +6,9 @@
 
 #define UE_API DEPENDENCYSIGNALRUNTIME_API
 
+/**
+ * Namespace containing all predefined gameplay tags for the dependency signal system.
+ */
 namespace DependencySignalTags
 {
 	UE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Root);
