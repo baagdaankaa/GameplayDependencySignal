@@ -100,6 +100,18 @@ void FDependencySignalAgent::ValidateDependency(
 	}
 }
 
+UObject* FDependencySignalAgent::GetDependencyObject(
+	const UObject* ContextualObject, const FGameplayTag& Tag, UObject* SourceObject) const
+{
+	if (const UDependencySignalSubsystem* Subsystem = GetSubsystem(ContextualObject))
+	{
+		return Subsystem->GetDependency(Tag, SourceObject);
+	}
+
+	LOG_SUBSYSTEM_NOT_FOUND("get");
+	return nullptr;
+}
+
 const UDependencySignalSubsystem* FDependencySignalAgent::GetSubsystem(const UObject* ContextualObject) const
 {
 	if (!CachedSubsystem.IsValid())

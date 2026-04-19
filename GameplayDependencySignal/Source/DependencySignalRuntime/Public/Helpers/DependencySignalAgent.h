@@ -56,10 +56,24 @@ protected:
 	void ValidateDependency(const UActorComponent* Component, const FGameplayTag& Tag, const bool bIsValid,
 		const bool bForceRetrigger = false) const;
 
+	UObject* GetDependencyObject(
+		const UObject* ContextualObject, const FGameplayTag& Tag, UObject* SourceObject = nullptr) const;
+
+	template <class T = UObject>
+	T* GetDependencyObject(
+		const UObject* ContextualObject, const FGameplayTag& Tag, UObject* SourceObject = nullptr) const;
+
 private:
 	const UDependencySignalSubsystem* GetSubsystem(const UObject* ContextualObject) const;
 
 	mutable TWeakObjectPtr<const UDependencySignalSubsystem> CachedSubsystem;
 };
+
+template <class T>
+T* FDependencySignalAgent::GetDependencyObject(
+	const UObject* ContextualObject, const FGameplayTag& Tag, UObject* SourceObject) const
+{
+	return Cast<T>(GetDependencyObject(ContextualObject, Tag, SourceObject));
+}
 
 #undef UE_API

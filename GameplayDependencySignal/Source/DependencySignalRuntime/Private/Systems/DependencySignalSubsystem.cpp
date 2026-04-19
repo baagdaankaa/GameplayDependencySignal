@@ -93,6 +93,17 @@ void UDependencySignalSubsystem::Validate(
 	}
 }
 
+UObject* UDependencySignalSubsystem::GetDependency(const FGameplayTag& Tag, UObject* SourceObject) const
+{
+	if (Resolver.IsValid())
+	{
+		return Resolver->GetDependency(Tag, SourceObject);
+	}
+
+	LOG_SUBSYSTEM_NOT_READY("get");
+	return nullptr;
+}
+
 bool UDependencySignalSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
 	return GetDefault<UDependencySignalSettings>()->ShouldCreateSubsystem() && Super::ShouldCreateSubsystem(Outer);
@@ -112,11 +123,25 @@ void UDependencySignalSubsystem::PostInitialize()
 {
 	Super::PostInitialize();
 
+	const UDependencySignalSettings* Settings = GetDefault<UDependencySignalSettings>();
+
 	if (!Dispatcher.IsValid())
 	{
-		Dispatcher =
-			MakeShared<FDependencySignalDispatcher>(GetDefault<UDependencySignalSettings>()->GetRootTags(), this);
+		Dispatcher = MakeShared<FDependencySignalDispatcher>(Settings->GetRootTags(), this);
+	}
+
+	if (!Resolver.IsValid())
+	{
+		Resolver = MakeUnique<FDependencySignalProviderResolver>(Settings->GetProviderClasses(), GetWorld());
+	}
+
+	if (Resolver.IsValid() && Dispatcher.IsValid())
+	{
 		DS_UE_LOG(Log, TEXT("DependencySignalSubsystem successfully initialized"));
+	}
+	else
+	{
+		DS_UE_LOG(Error, TEXT("DependencySignalSubsystem was NOT successfully initialized"));
 	}
 }
 
@@ -124,8 +149,21 @@ void UDependencySignalSubsystem::PreDeinitialize()
 {
 	if (Dispatcher.IsValid())
 	{
-		Dispatcher->Reset();
+		Dispatcher.Reset();
+	}
+
+	if (Resolver.IsValid())
+	{
+		Resolver.Reset();
+	}
+
+	if (!Resolver.IsValid() && !Dispatcher.IsValid())
+	{
 		DS_UE_LOG(Log, TEXT("DependencySignalSubsystem successfully deinitialized"));
+	}
+	else
+	{
+		DS_UE_LOG(Error, TEXT("Some DependencySignalSubsystem's data has not been cleared"));
 	}
 
 	Super::PreDeinitialize();

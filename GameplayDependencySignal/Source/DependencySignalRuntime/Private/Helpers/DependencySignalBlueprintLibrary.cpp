@@ -21,6 +21,29 @@ void UDependencySignalBlueprintLibrary::InvalidateDependencySignalListenerHandle
 	}
 }
 
+UObject* UDependencySignalBlueprintLibrary::GetDependencySignalObject(
+	UObject* WorldContextObject, const FGameplayTag& Tag, UObject* SourceObject, const TSubclassOf<UObject> ReturnType)
+{
+	if (!Tag.IsValid())
+	{
+		return nullptr;
+	}
+
+	if (const UDependencySignalSubsystem* Subsystem = UDependencySignalSubsystem::Get(WorldContextObject))
+	{
+		UObject* DependencyObject = Subsystem->GetDependency(Tag, SourceObject);
+		return IsValid(DependencyObject) && DependencyObject->IsA(ReturnType) ? DependencyObject : nullptr;
+	}
+
+	return nullptr;
+}
+
+UObject* UDependencySignalBlueprintLibrary::GetLocalDependencySignalObject(
+	UObject* WorldContextObject, const FGameplayTag& Tag, const TSubclassOf<UObject> ReturnType)
+{
+	return GetDependencySignalObject(WorldContextObject, Tag, nullptr, ReturnType);
+}
+
 bool UDependencySignalBlueprintLibrary::IsValidDependencySignal(
 	const UObject* WorldContextObject, const FGameplayTagContainer& Tags, const UObject* SourceObject)
 {

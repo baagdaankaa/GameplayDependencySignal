@@ -30,6 +30,21 @@ public:
 	static void InvalidateDependencySignalListenerHandle(UPARAM(ref) FDependencySignalListenerHandle& Handle);
 
 	// -------------------------------------------------------------------------------
+	// Dependency Providers
+	// -------------------------------------------------------------------------------
+
+	UFUNCTION(BlueprintPure, Category = "Dependency Signal | Dependency Providers",
+		meta = (WorldContext = "WorldContextObject", AutoCreateRefTerm = "Tag", DeterminesOutputType = "ReturnType"))
+	static UObject* GetDependencySignalObject(UObject* WorldContextObject,
+		UPARAM(meta = (Categories = "DependencySignal")) const FGameplayTag& Tag, UObject* SourceObject,
+		TSubclassOf<UObject> ReturnType);
+
+	UFUNCTION(BlueprintPure, BlueprintCosmetic, Category = "Dependency Signal | Dependency Providers",
+		meta = (WorldContext = "WorldContextObject", AutoCreateRefTerm = "Tag", DeterminesOutputType = "ReturnType"))
+	static UObject* GetLocalDependencySignalObject(UObject* WorldContextObject,
+		UPARAM(meta = (Categories = "DependencySignal")) const FGameplayTag& Tag, TSubclassOf<UObject> ReturnType);
+
+	// -------------------------------------------------------------------------------
 	// Validation
 	// -------------------------------------------------------------------------------
 

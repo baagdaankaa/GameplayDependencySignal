@@ -4,9 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
+#include "Providers/DependencySignalProviderResolver.h"
 #include "DependencySignalSubsystem.generated.h"
-
-#define UE_API DEPENDENCYSIGNALRUNTIME_API
 
 class FDependencySignalDispatcher;
 
@@ -14,6 +13,8 @@ struct FDependencySignalRequest;
 struct FDependencySignalListenerHandle;
 struct FGameplayTagContainer;
 struct FGameplayTag;
+
+#define UE_API DEPENDENCYSIGNALRUNTIME_API
 
 UCLASS(MinimalAPI)
 class UDependencySignalSubsystem : public UWorldSubsystem
@@ -37,6 +38,11 @@ public:
 	UE_API void Validate(
 		const AActor* Actor, const FGameplayTag& Tag, const bool bIsValid, const bool bForceRetrigger = false) const;
 
+	UE_API UObject* GetDependency(const FGameplayTag& Tag, UObject* SourceObject = nullptr) const;
+
+	template <class T = UObject>
+	UE_API T* GetDependency(const FGameplayTag& Tag, UObject* SourceObject = nullptr) const;
+
 protected:
 	//~ Begin of UWorldSubsystem Interface
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
@@ -48,6 +54,13 @@ protected:
 
 private:
 	TSharedPtr<FDependencySignalDispatcher> Dispatcher;
+	TUniquePtr<FDependencySignalProviderResolver> Resolver;
 };
+
+template <class T>
+T* UDependencySignalSubsystem::GetDependency(const FGameplayTag& Tag, UObject* SourceObject) const
+{
+	return Cast<T>(GetDependency(Tag, SourceObject));
+}
 
 #undef UE_API

@@ -7,6 +7,8 @@
 #include "Engine/DeveloperSettings.h"
 #include "DependencySignalSettings.generated.h"
 
+class UDependencySignalProviderBase;
+
 #define UE_API DEPENDENCYSIGNALRUNTIME_API
 
 UCLASS(Config = Game, DefaultConfig, meta = (DisplayName = "Dependency Signal Settings"))
@@ -24,12 +26,20 @@ public:
 		return bShouldSubsystemBeCreated;
 	}
 
+	FORCEINLINE const TArray<TSubclassOf<UDependencySignalProviderBase>>& GetProviderClasses() const
+	{
+		return ProviderClasses;
+	}
+
 private:
 	UPROPERTY(Config, EditAnywhere)
 	bool bShouldSubsystemBeCreated = true;
 
 	UPROPERTY(Config, EditAnywhere, meta = (Categories = "DependencySignal"))
 	FGameplayTagContainer RootTags;
+
+	UPROPERTY(Config, EditAnywhere)
+	TArray<TSubclassOf<UDependencySignalProviderBase>> ProviderClasses;
 };
 
 #undef UE_API
