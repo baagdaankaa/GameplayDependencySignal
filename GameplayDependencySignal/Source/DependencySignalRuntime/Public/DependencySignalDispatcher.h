@@ -74,6 +74,7 @@ public:
 	 */
 	bool IsValidDependency(const FGameplayTagContainer& Tags, const UObject* SourceObject = nullptr) const;
 
+	/** Returns the number of currently registered dependency listeners. */
 	int32 GetListenersNum() const;
 
 	/**
