@@ -1,5 +1,13 @@
 # Gameplay Dependency Signal
 
+**Gameplay Dependency Signal** is a lightweight reactive dependency system for Unreal Engine that helps gameplay code, UI, and other runtime systems wait for objects and states in a clean, event-driven way.
+
+Instead of manually checking whether a `Controller`, `Pawn`, `PlayerState`, or any custom gameplay dependency is ready, you register interest in one or more dependency tags and receive a callback when the dependency becomes valid or invalid.
+
+It is especially useful in multiplayer projects, where object availability is often delayed by spawning order, possession flow, replication, or ownership changes.
+
+---
+
 ## Table of Contents
 
 - [Why Use It?](#why-use-it)
@@ -44,14 +52,6 @@
   - [Available settings](#available-settings)
 - [Practical Tips](#practical-tips)
 - [Summary](#summary)
-
-**Gameplay Dependency Signal** is a lightweight reactive dependency system for Unreal Engine that helps gameplay code, UI, and other runtime systems wait for objects and states in a clean, event-driven way.
-
-Instead of manually checking whether a `Controller`, `Pawn`, `PlayerState`, or any custom gameplay dependency is ready, you register interest in one or more dependency tags and receive a callback when the dependency becomes valid or invalid.
-
-It is especially useful in multiplayer projects, where object availability is often delayed by spawning order, possession flow, replication, or ownership changes.
-
----
 
 ## Why Use It?
 
@@ -252,8 +252,7 @@ Before using the nodes, it helps to decide whether your dependency is:
 ### Waiting for Dependencies
 
 Use the async action:
-
-- `Listen For Dependency Signal Validity`
+<img width="465" height="256" alt="Listen For Dependency Signal Validity Node" src="https://github.com/user-attachments/assets/e9068235-0de8-44c3-ad2a-531d08ba7e04" />
 
 This node listens for one or more tags and broadcasts when the effective validity changes.
 
@@ -265,25 +264,21 @@ Good use cases:
 ### Validating Dependencies
 
 Use one of the validation helpers:
-- `Validate Dependency Signal`
-- `Validate Actor Dependency Signal`
-- `Validate Component Dependency Signal`
+<img width="959" height="286" alt="Validation Dependency Nodes" src="https://github.com/user-attachments/assets/176adacf-ca50-45f5-8b49-bc6cd639786b" />
 
 These let you mark a dependency as valid or invalid.
 
 ### Checking Validity
 
 Use:
-- `Is Valid Dependency Signal`
-- `Is Valid Local Dependency Signal`
+<img width="767" height="212" alt="Is Valid Dependency Nodes" src="https://github.com/user-attachments/assets/84f6b483-52be-4975-a6fa-c75232983033" />
 
 These are useful when you need an immediate check instead of subscribing.
 
 ### Getting the Object
 
 Use:
-- `Get Dependency Signal Object`
-- `Get Local Dependency Signal Object`
+<img width="732" height="217" alt="Get Dependency Object Nodes" src="https://github.com/user-attachments/assets/2649cc9b-0c20-4fb6-bb9d-e08d80b966bf" />
 
 These resolve the dependency object for a tag.
 
@@ -292,8 +287,7 @@ For UI on the local client, `Get Local Dependency Signal Object` is often the mo
 ### Listener Handle Helpers
 
 If you store a listener handle in Blueprint, you can manage it with:
-- `Is Valid Dependency Signal Listener Handle`
-- `Invalidate Dependency Signal Listener Handle`
+<img width="756" height="152" alt="Listener Handle Nodes" src="https://github.com/user-attachments/assets/47424483-666d-40e5-8347-aca1c72294a7" />
 
 This is useful when you want to stop listening manually.
 
