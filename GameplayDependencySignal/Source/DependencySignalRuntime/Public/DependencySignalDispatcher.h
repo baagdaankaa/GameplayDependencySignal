@@ -74,6 +74,8 @@ public:
 	 */
 	bool IsValidDependency(const FGameplayTagContainer& Tags, const UObject* SourceObject = nullptr) const;
 
+	int32 GetListenersNum() const;
+
 	/**
 	 * Updates the validity state of a dependency and broadcasts changes to listeners.
 	 *

@@ -53,6 +53,11 @@ bool FDependencySignalDispatcher::IsValidDependency(
 	});
 }
 
+int32 FDependencySignalDispatcher::GetListenersNum() const
+{
+	return HandleToListener.Num();
+}
+
 void FDependencySignalDispatcher::Validate(
 	const FGameplayTag& Tag, const bool bIsValid, const UObject* SourceObject, const bool bForceRetrigger) const
 {

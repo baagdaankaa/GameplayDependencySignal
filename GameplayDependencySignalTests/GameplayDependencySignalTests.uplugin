@@ -1,0 +1,27 @@
+﻿{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Test for Gameplay Dependency Signal",
+	"Description": "",
+	"Category": "Tests",
+	"CreatedBy": "Bohdan Sofronii",
+	"CreatedByURL": "",
+	"SupportURL": "https://github.com/baagdaankaa/GameplayDependencySignal/issues",
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "DependencySignalTests",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "GameplayDependencySignal",
+			"Enabled": true
+		}
+	]	
+}
