@@ -2,6 +2,8 @@
 
 #include "DependencySignalRuntime.h"
 
+DEFINE_LOG_CATEGORY(LogDependencySignal)
+
 #define LOCTEXT_NAMESPACE "FDependencySignalRuntimeModule"
 
 void FDependencySignalRuntimeModule::StartupModule()
