@@ -137,7 +137,7 @@ public:
 	 * @return						The dependency cast to type T, or nullptr if not found.
 	 */
 	template <class T = UObject>
-	UE_API T* GetDependency(const FGameplayTag& Tag, UObject* SourceObject = nullptr) const;
+	T* GetDependency(const FGameplayTag& Tag, UObject* SourceObject = nullptr) const;
 
 	/**
 	 * Retrieves a dependency using compile-time typed traits for type-safe access.
@@ -152,7 +152,7 @@ public:
 	 * @see TDependencySignalTraits, DECLARE_DEPENDENCY_SIGNAL_TRAIT
 	 */
 	template <typename T>
-	UE_API typename TDependencySignalTraits<T>::ReturnType GetDependency(UObject* SourceObject = nullptr) const;
+	typename TDependencySignalTraits<T>::ReturnType GetDependency(UObject* SourceObject = nullptr) const;
 
 protected:
 	//~ Begin of UWorldSubsystem Interface
