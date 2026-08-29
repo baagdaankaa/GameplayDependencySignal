@@ -21,36 +21,35 @@ AController* UDependencySignalProviderBase::GetControllerFrom(UObject* SourceObj
 		return nullptr;
 	}
 
-	// Look for a controller in the owner chain.
-	while (SourceObject)
 	{
-		if (AController* Controller = Cast<AController>(SourceObject))
-		{
-			return Controller;
-		}
+		UObject* TempObject = SourceObject;
 
-		if (const APawn* Pawn = Cast<APawn>(SourceObject))
+		// Look for a controller in the owner chain.
+		while (TempObject)
 		{
-			return Pawn->GetController();
-		}
+			if (AController* Controller = Cast<AController>(TempObject))
+			{
+				return Controller;
+			}
 
-		if (const AActor* Actor = Cast<AActor>(SourceObject))
-		{
-			SourceObject = Actor->GetOwner();
-			continue;
-		}
+			if (const APawn* Pawn = Cast<APawn>(TempObject))
+			{
+				return Pawn->GetController();
+			}
 
-		SourceObject = SourceObject->GetOuter();
+			if (const AActor* Actor = Cast<AActor>(TempObject))
+			{
+				TempObject = Actor->GetOwner();
+				continue;
+			}
+
+			TempObject = TempObject->GetOuter();
+		}
 	}
 
 	if (const UWorld* World = SourceObject->GetWorld())
 	{
-		const ENetMode NetMode = World->GetNetMode();
-
-		if (NetMode == NM_Client || NetMode == NM_Standalone)
-		{
-			return World->GetFirstPlayerController();
-		}
+		return World->GetGameInstance()->GetFirstLocalPlayerController(World);
 	}
 
 	return nullptr;
