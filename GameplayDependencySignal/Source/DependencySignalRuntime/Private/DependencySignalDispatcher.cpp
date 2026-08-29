@@ -132,7 +132,7 @@ FDependencySignalDispatcher::FListenerHandle FDependencySignalDispatcher::Regist
 
 	HandleToListener.Add(NewHandle, MoveTemp(NewListenerEntry));
 
-	bool bIsHierarchyDependencyValid = false;
+	bool bIsHierarchyDependencyValid = true;
 	for (const FGameplayTag& DependencyTag : Request.DependencyTags)
 	{
 		FDepEntry* DependencyEntry =
