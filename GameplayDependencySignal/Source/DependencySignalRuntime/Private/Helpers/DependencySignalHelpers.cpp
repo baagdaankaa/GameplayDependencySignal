@@ -3,6 +3,7 @@
 #include "Helpers/DependencySignalHelpers.h"
 
 #include "DependencySignalDispatcher.h"
+#include "GameFramework/GameStateBase.h"
 
 void FDependencySignalHelpers::ValidateFor(const UActorComponent* Component,
 	const FDependencySignalDispatcher& Dispatcher, const FGameplayTag& Tag, const bool bIsValid,
@@ -24,7 +25,7 @@ void FDependencySignalHelpers::ValidateFor(const AActor* Actor, const FDependenc
 
 	Dispatcher.Validate(Tag, bIsValid, Actor, bForceRetrigger);
 
-	if (IsLocalPlayerController(Actor))
+	if (IsLocalPlayerController(Actor) || Actor->IsA<AGameStateBase>())
 	{
 		Dispatcher.Validate(Tag, bIsValid, /* SourceObject */ nullptr, bForceRetrigger);
 	}
