@@ -12,13 +12,20 @@ BEGIN_DEFINE_SPEC(FDependencySignalValidationSpec, "DependencySignal.Validation"
 	EAutomationTestFlags::ClientContext | EAutomationTestFlags::EditorContext | EAutomationTestFlags::ServerContext
 		| EAutomationTestFlags::EngineFilter)
 
+struct FTestDependencyValidationConfig : public FTestDependencyConfigBase
+{
+	TOptional<bool> bFinalValidationResult;
+};
+
+using FTestConfig = FTestDependencyValidationConfig;
+
 void CheckTagABValidation(const bool bIsABValidate, const bool bIsValid, const bool bIsValidA, const bool bIsValidAB,
 	const UObject* InSourceObject);
 
 void TestHierarchicalDependencyWith(const UObject* InSourceObject);
 void TestValidation(const FGameplayTag& InTag, bool bShouldBeValid, const UObject* InSourceObject);
 
-void LaunchConfigIt(FTestDependencyConfig&& Config);
+void LaunchConfigIt(const TFunction<void(FTestConfig&)>& SetupConfigFunc);
 
 TStrongObjectPtr<UDepTestObject> WorldContext;
 TSharedPtr<FDependencySignalDispatcher> Dispatcher;
@@ -86,78 +93,87 @@ void FDependencySignalValidationSpec::Define()
 	Describe("Callback", [this] {
 		Describe("With one dependency", [this] {
 			Describe("Should be called with validation state - False", [this] {
-				FTestDependencyConfig Config;
-
-				Config.RegistrationTags.AddTagFast(FNativeGameplayTags::Get().Test_A);
-				Config.bFinalValidationResult = false;
-
-				LaunchConfigIt(MoveTemp(Config));
+				LaunchConfigIt([](FTestConfig& Config) {
+					Config.RegistrationTags.AddTagFast(FNativeGameplayTags::Get().Test_A);
+					Config.bFinalValidationResult = false;
+				});
 			});
 
 			Describe("Should be called with validation state - True", [this] {
-				FTestDependencyConfig Config;
+				LaunchConfigIt([](FTestConfig& Config) {
+					Config.PreValidationQueue.Add({ FNativeGameplayTags::Get().Test_A, true });
+					Config.RegistrationTags.AddTagFast(FNativeGameplayTags::Get().Test_A);
+					Config.bFinalValidationResult = true;
+				});
+			});
 
-				Config.RegistrationTags.AddTagFast(FNativeGameplayTags::Get().Test_A);
-				Config.ValidationQueue.Add({ FNativeGameplayTags::Get().Test_A, true });
-				Config.bFinalValidationResult = true;
-
-				LaunchConfigIt(MoveTemp(Config));
+			Describe("Should be called with validation state - True", [this] {
+				LaunchConfigIt([](FTestConfig& Config) {
+					Config.RegistrationTags.AddTagFast(FNativeGameplayTags::Get().Test_A);
+					Config.ValidationQueue.Add({ FNativeGameplayTags::Get().Test_A, true });
+					Config.bFinalValidationResult = true;
+				});
 			});
 		});
 
 		Describe("With two dependency", [this] {
 			Describe("1", [this] {
-				FTestDependencyConfig Config;
-
-				Config.RegistrationTags.AddTagFast(FNativeGameplayTags::Get().Test_A);
-				Config.RegistrationTags.AddTagFast(FNativeGameplayTags::Get().Test_B);
-				Config.bFinalValidationResult = false;
-
-				LaunchConfigIt(MoveTemp(Config));
+				LaunchConfigIt([](FTestConfig& Config) {
+					Config.PreValidationQueue.Add({ FNativeGameplayTags::Get().Test_A, true });
+					Config.RegistrationTags.AddTagFast(FNativeGameplayTags::Get().Test_A);
+					Config.RegistrationTags.AddTagFast(FNativeGameplayTags::Get().Test_B);
+					Config.bFinalValidationResult = false;
+				});
 			});
 
 			Describe("2", [this] {
-				FTestDependencyConfig Config;
+				LaunchConfigIt([](FTestConfig& Config) {
+					Config.PreValidationQueue.Add({ FNativeGameplayTags::Get().Test_A, true });
+					Config.PreValidationQueue.Add({ FNativeGameplayTags::Get().Test_B, true });
+					Config.RegistrationTags.AddTagFast(FNativeGameplayTags::Get().Test_A);
+					Config.RegistrationTags.AddTagFast(FNativeGameplayTags::Get().Test_B);
+					Config.bFinalValidationResult = true;
+				});
+			});
 
-				Config.RegistrationTags.AddTagFast(FNativeGameplayTags::Get().Test_A);
-				Config.RegistrationTags.AddTagFast(FNativeGameplayTags::Get().Test_B);
-				Config.ValidationQueue.Add({ FNativeGameplayTags::Get().Test_A, true });
-				Config.ValidationQueue.Add({ FNativeGameplayTags::Get().Test_B, true });
-				Config.bFinalValidationResult = true;
+			Describe("3", [this] {
+				LaunchConfigIt([](FTestConfig& Config) {
+					Config.RegistrationTags.AddTagFast(FNativeGameplayTags::Get().Test_A);
+					Config.RegistrationTags.AddTagFast(FNativeGameplayTags::Get().Test_B);
+					Config.bFinalValidationResult = false;
+				});
+			});
 
-				LaunchConfigIt(MoveTemp(Config));
+			Describe("4", [this] {
+				LaunchConfigIt([](FTestConfig& Config) {
+					Config.RegistrationTags.AddTagFast(FNativeGameplayTags::Get().Test_A);
+					Config.RegistrationTags.AddTagFast(FNativeGameplayTags::Get().Test_B);
+					Config.ValidationQueue.Add({ FNativeGameplayTags::Get().Test_A, true });
+					Config.ValidationQueue.Add({ FNativeGameplayTags::Get().Test_B, true });
+					Config.bFinalValidationResult = true;
+				});
 			});
 		});
 
 		Describe("With child dependency", [this] {
-			{
-				FTestDependencyConfig Config;
-
+			LaunchConfigIt([](FTestConfig& Config) {
 				Config.RegistrationTags.AddTagFast(FNativeGameplayTags::Get().Test_A_B);
 				Config.bFinalValidationResult = false;
+			});
 
-				LaunchConfigIt(MoveTemp(Config));
-			}
-			{
-				FTestDependencyConfig Config;
-
+			LaunchConfigIt([](FTestConfig& Config) {
 				Config.RegistrationTags.AddTagFast(FNativeGameplayTags::Get().Test_A_B);
 				Config.ValidationQueue.Add({ FNativeGameplayTags::Get().Test_A, true });
 				Config.ValidationQueue.Add({ FNativeGameplayTags::Get().Test_A_B, true });
 				Config.bFinalValidationResult = true;
+			});
 
-				LaunchConfigIt(MoveTemp(Config));
-			}
-			{
-				FTestDependencyConfig Config;
-
+			LaunchConfigIt([](FTestConfig& Config) {
 				Config.RegistrationTags.AddTagFast(FNativeGameplayTags::Get().Test_A_B);
 				Config.ValidationQueue.Add({ FNativeGameplayTags::Get().Test_A_B, true });
 				Config.ValidationQueue.Add({ FNativeGameplayTags::Get().Test_A, true });
 				Config.bFinalValidationResult = true;
-
-				LaunchConfigIt(MoveTemp(Config));
-			}
+			});
 		});
 	});
 }
@@ -450,45 +466,64 @@ void FDependencySignalValidationSpec::TestValidation(
 	}
 }
 
-void FDependencySignalValidationSpec::LaunchConfigIt(FTestDependencyConfig&& Config)
+void FDependencySignalValidationSpec::LaunchConfigIt(const TFunction<void(FTestConfig&)>& SetupConfigFunc)
 {
-	const FString RegistrationTagsStr = Config.GetRegistrationTagsString();
-	const FString ValidationsSequenceStr = Config.GetValidationsSequenceString();
+	FTestConfig Config;
 
-	It(FString::Printf(
-		   TEXT("Should be valid state of [%s] -> Order [%s]"), *RegistrationTagsStr, *ValidationsSequenceStr),
-		[this, CapturedConfig = MoveTemp(Config)] {
+	SetupConfigFunc(Config);
+
+	It(FString::Printf(TEXT("Should be valid state of [%s] -> Order [%s]"),
+		   *GetRegistrationTagsString(Config.RegistrationTags), *GetValidationsSequenceString(Config.ValidationQueue)),
+		[this, Config] {
 			TOptional<bool> bCallbackValidationResult;
 
 			TestFalse(TEXT("bCallbackValidationResult should be unset"), bCallbackValidationResult.IsSet());
-			TestTrue(TEXT("bFinalValidationResult should be set"), CapturedConfig.bFinalValidationResult.IsSet());
+			TestTrue(TEXT("bFinalValidationResult should be set"), Config.bFinalValidationResult.IsSet());
+
+			for (const FTestDependency& Entry : Config.PreValidationQueue)
+			{
+				const FString SourceObjectStr = Entry.SourceObject.IsValid()
+					? *FString::Printf(TEXT("for %s"), *Entry.SourceObject->GetName())
+					: TEXT("");
+
+				AddInfo(FString::Printf(TEXT("Manual %s [%s] dependency%s"),
+					Entry.IsValid ? TEXT("validation") : TEXT("invalidation"), *Entry.GetTagString(),
+					*SourceObjectStr));
+
+				Dispatcher->Validate(Entry.Tag, Entry.IsValid, Entry.SourceObject.Get());
+			}
 
 			AddInfo(
-				FString::Printf(TEXT("Register listener with tag [%s]"), *CapturedConfig.GetRegistrationTagsString()));
+				FString::Printf(TEXT("Register listener with tag [%s]"), *Config.RegistrationTags.ToStringSimple()));
 			Dispatcher->Register(FDependencySignalRequest()
-					.AddTags(CapturedConfig.RegistrationTags)
+					.AddTags(Config.RegistrationTags)
 					.BindLambda([&bCallbackValidationResult](const bool bIsValid, UObject*) {
 						bCallbackValidationResult = bIsValid;
 					})
 					.End());
 			TestTrue(TEXT("bCallbackValidationResult should be set"), bCallbackValidationResult.IsSet());
 
-			for (const FTestDependency& Entry : CapturedConfig.ValidationQueue)
+			for (const FTestDependency& Entry : Config.ValidationQueue)
 			{
-				AddInfo(FString::Printf(TEXT("Manual %s [%s] dependency"),
-					Entry.IsValid ? TEXT("validation") : TEXT("invalidation"), *Entry.GetTagString()));
-				Dispatcher->Validate(Entry.Tag, true);
+				const FString SourceObjectStr = Entry.SourceObject.IsValid()
+					? *FString::Printf(TEXT("for %s"), *Entry.SourceObject->GetName())
+					: TEXT("");
+
+				AddInfo(FString::Printf(TEXT("Manual %s [%s] dependency%s"),
+					Entry.IsValid ? TEXT("validation") : TEXT("invalidation"), *Entry.GetTagString(),
+					*SourceObjectStr));
+
+				Dispatcher->Validate(Entry.Tag, Entry.IsValid, Entry.SourceObject.Get());
 			}
 
-			const bool bIsValidResults =
-				bCallbackValidationResult.IsSet() && CapturedConfig.bFinalValidationResult.IsSet();
+			const bool bIsValidResults = bCallbackValidationResult.IsSet() && Config.bFinalValidationResult.IsSet();
 
 			TestTrue(TEXT("Results valid"), bIsValidResults);
 
 			if (bIsValidResults)
 			{
 				TestEqual(TEXT("CallbackValidationResult equal FinalValidationResult"),
-					bCallbackValidationResult.GetValue(), CapturedConfig.bFinalValidationResult.GetValue());
+					bCallbackValidationResult.GetValue(), Config.bFinalValidationResult.GetValue());
 			}
 		});
 }

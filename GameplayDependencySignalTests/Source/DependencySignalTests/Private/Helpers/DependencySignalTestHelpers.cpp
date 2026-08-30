@@ -20,12 +20,12 @@ namespace DependencySignal::Tests
 		return FormatGameplayTag(Tag);
 	}
 
-	FString FTestDependencyConfig::GetRegistrationTagsString() const
+	FString GetRegistrationTagsString(const FGameplayTagContainer& InTags)
 	{
 		FString Str;
 		FString Suffix = TEXT(", ");
 
-		for (const FGameplayTag& Tag : RegistrationTags)
+		for (const FGameplayTag& Tag : InTags)
 		{
 			Str += FormatGameplayTag(Tag);
 			Str += Suffix;
@@ -35,12 +35,12 @@ namespace DependencySignal::Tests
 		return Str;
 	}
 
-	FString FTestDependencyConfig::GetValidationsSequenceString() const
+	FString GetValidationsSequenceString(const TArray<FTestDependency>& InValidationQueue)
 	{
 		FString Str;
 		FString Suffix = TEXT(" -> ");
 
-		for (const FTestDependency& Queue : ValidationQueue)
+		for (const FTestDependency& Queue : InValidationQueue)
 		{
 			Str += Queue.GetTagString();
 			Str += Suffix;
@@ -48,17 +48,5 @@ namespace DependencySignal::Tests
 
 		Str.RemoveFromEnd(Suffix);
 		return Str;
-	}
-
-	void FTestDependencyConfig::Reset()
-	{
-		RegistrationTags = FGameplayTagContainer::EmptyContainer;
-		ValidationQueue.Empty();
-		bFinalValidationResult.Reset();
-	}
-
-	bool FTestDependencyConfig::IsValid() const
-	{
-		return !RegistrationTags.IsEmpty() && !bFinalValidationResult.IsSet();
 	}
 } // namespace DependencySignal::Tests

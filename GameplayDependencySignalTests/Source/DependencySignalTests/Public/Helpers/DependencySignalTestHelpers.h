@@ -46,22 +46,29 @@ namespace DependencySignal::Tests
 
 		FGameplayTag Tag;
 		bool IsValid = false;
+
+		TWeakObjectPtr<UObject> SourceObject;
 	};
 
-	struct FTestDependencyConfig
+	struct FTestVerification
 	{
-		FString GetRegistrationTagsString() const;
-		FString GetValidationsSequenceString() const;
+		bool IsValid = false;
+		TWeakObjectPtr<UObject> SourceObject;
+	};
 
-		void Reset();
-		bool IsValid() const;
-
+	struct FTestDependencyConfigBase
+	{
 		FGameplayTagContainer RegistrationTags;
 
-		TArray<FTestDependency> ValidationQueue;
+		// used before dependency registration
+		TArray<FTestDependency> PreValidationQueue;
 
-		TOptional<bool> bFinalValidationResult;
+		// used after dependency registration
+		TArray<FTestDependency> ValidationQueue;
 	};
+
+	FString GetRegistrationTagsString(const FGameplayTagContainer& InTags);
+	FString GetValidationsSequenceString(const TArray<FTestDependency>& InValidationQueue);
 
 } // namespace DependencySignal::Tests
 
