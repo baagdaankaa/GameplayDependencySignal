@@ -38,6 +38,12 @@ protected:
 		FDependencySignalRequestBuilder& AddTags(const FGameplayTagContainer& TagContainer);
 		FDependencySignalRequestBuilder& AddSource(const UObject* InSourceObject);
 
+		/** Sets whether this request should listen for dependencies from any source object. */
+		FDependencySignalRequestBuilder& SetAnySource(const bool bAny);
+
+		/** Marks this request to listen for dependencies across any source object. */
+		FDependencySignalRequestBuilder& MarkAsAnySource();
+
 		template <typename UserClass, typename... VarTypes>
 		FDependencySignalRequestBuilder& Bind(
 			UserClass* InUserObject, FDependencyStateEvent::TMethodPtr<UserClass, VarTypes...> Func, VarTypes... Vars)

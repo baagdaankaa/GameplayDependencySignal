@@ -40,6 +40,20 @@ FDependencySignalAgent::FDependencySignalRequestBuilder::AddSource(const UObject
 	return *this;
 }
 
+FDependencySignalAgent::FDependencySignalRequestBuilder&
+FDependencySignalAgent::FDependencySignalRequestBuilder::SetAnySource(const bool bAny)
+{
+	PendingRequest.SetAnySource(bAny);
+	return *this;
+}
+
+FDependencySignalAgent::FDependencySignalRequestBuilder&
+FDependencySignalAgent::FDependencySignalRequestBuilder::MarkAsAnySource()
+{
+	PendingRequest.MarkAsAnySource();
+	return *this;
+}
+
 FDependencySignalListenerHandle FDependencySignalAgent::FDependencySignalRequestBuilder::Register()
 {
 	if (Subsystem.IsValid())
