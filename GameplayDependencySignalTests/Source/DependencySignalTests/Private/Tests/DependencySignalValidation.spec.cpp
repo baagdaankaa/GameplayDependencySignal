@@ -119,8 +119,8 @@ void FDependencySignalValidationSpec::Define()
 		Describe("With two dependency", [this] {
 			Describe("1", [this] {
 				LaunchConfigIt([](FTestConfig& Config) {
-					Config.PreValidationQueue.Add({ FNativeGameplayTags::Get().Test_A, true });
-					Config.RegistrationTags.AddTagFast(FNativeGameplayTags::Get().Test_A);
+					Config.PreValidationQueue.Add({ FNativeGameplayTags::Get().Test_C, true });
+					Config.RegistrationTags.AddTagFast(FNativeGameplayTags::Get().Test_C);
 					Config.RegistrationTags.AddTagFast(FNativeGameplayTags::Get().Test_B);
 					Config.bFinalValidationResult = false;
 				});
@@ -129,9 +129,9 @@ void FDependencySignalValidationSpec::Define()
 			Describe("2", [this] {
 				LaunchConfigIt([](FTestConfig& Config) {
 					Config.PreValidationQueue.Add({ FNativeGameplayTags::Get().Test_A, true });
-					Config.PreValidationQueue.Add({ FNativeGameplayTags::Get().Test_B, true });
+					Config.PreValidationQueue.Add({ FNativeGameplayTags::Get().Test_C, true });
 					Config.RegistrationTags.AddTagFast(FNativeGameplayTags::Get().Test_A);
-					Config.RegistrationTags.AddTagFast(FNativeGameplayTags::Get().Test_B);
+					Config.RegistrationTags.AddTagFast(FNativeGameplayTags::Get().Test_C);
 					Config.bFinalValidationResult = true;
 				});
 			});
@@ -472,8 +472,13 @@ void FDependencySignalValidationSpec::LaunchConfigIt(const TFunction<void(FTestC
 
 	SetupConfigFunc(Config);
 
-	It(FString::Printf(TEXT("Should be valid state of [%s] -> Order [%s]"),
-		   *GetRegistrationTagsString(Config.RegistrationTags), *GetValidationsSequenceString(Config.ValidationQueue)),
+	const FString StateString = Config.bFinalValidationResult.IsSet()
+		? Config.bFinalValidationResult.GetValue() ? TEXT("valid") : TEXT("invalid")
+		: TEXT("UNSPECIFIED");
+
+	It(FString::Printf(TEXT("Final state should be %s of [%s] in Order [%s]"), *StateString,
+		   *GetRegistrationTagsString(Config.RegistrationTags),
+		   *GetValidationsSequenceString(Config.PreValidationQueue, Config.ValidationQueue)),
 		[this, Config] {
 			TOptional<bool> bCallbackValidationResult;
 
@@ -495,7 +500,7 @@ void FDependencySignalValidationSpec::LaunchConfigIt(const TFunction<void(FTestC
 
 			AddInfo(
 				FString::Printf(TEXT("Register listener with tag [%s]"), *Config.RegistrationTags.ToStringSimple()));
-			Dispatcher->Register(FDependencySignalRequest()
+			FDependencySignalListenerHandle Handle = Dispatcher->Register(FDependencySignalRequest()
 					.AddTags(Config.RegistrationTags)
 					.BindLambda([&bCallbackValidationResult](const bool bIsValid, UObject*) {
 						bCallbackValidationResult = bIsValid;
@@ -525,6 +530,10 @@ void FDependencySignalValidationSpec::LaunchConfigIt(const TFunction<void(FTestC
 				TestEqual(TEXT("CallbackValidationResult equal FinalValidationResult"),
 					bCallbackValidationResult.GetValue(), Config.bFinalValidationResult.GetValue());
 			}
+
+			Handle.Unregister();
+			TestFalse(TEXT("Invalid handle after unregistration"), Handle.IsValid());
+			TestEqual(TEXT("No any listener after unregistration"), Dispatcher->GetListenersNum(), 0);
 		});
 }
 #endif // WITH_AUTOMATION_TESTS

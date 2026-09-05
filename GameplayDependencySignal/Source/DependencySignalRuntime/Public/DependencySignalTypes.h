@@ -20,8 +20,8 @@ DECLARE_DELEGATE_TwoParams(FDependencyStateEvent, const bool /* bIsValid */, UOb
 /**
  * Request structure for registering a dependency signal listener.
  *
- * Use the builder-like methods (AddTag, AddTags, AddSource, Bind*) to construct
- * a request in a fluent manner before passing it to Register().
+ * Use the builder-like methods (AddTag, AddTags, AddSource, SetAnySource, MarkAsAnySource, Bind*)
+ * to construct a request in a fluent manner before passing it to Register().
  */
 USTRUCT(BlueprintType)
 struct UE_API FDependencySignalRequest
@@ -40,6 +40,12 @@ struct UE_API FDependencySignalRequest
 
 	/** Sets the source object context for this dependency request. */
 	FDependencySignalRequest& AddSource(const UObject* InSourceObject);
+
+	/** Sets whether this request should listen for dependencies from any source object. */
+	FDependencySignalRequest& SetAnySource(const bool bAny);
+
+	/** Marks this request to listen for dependencies across any source object. */
+	FDependencySignalRequest& MarkAsAnySource();
 
 	/** Binds a static function callback to this request. */
 	template <typename... VarTypes>
@@ -135,6 +141,12 @@ protected:
 	 */
 	UPROPERTY(BlueprintReadWrite, meta = (Categories = "DependencySignal"))
 	FGameplayTagContainer DependencyTags;
+
+	/**
+	 * If true, listens for dependency signals originating from any source object rather than a specific source.
+	 */
+	UPROPERTY(BlueprintReadWrite)
+	bool bAnySource = false;
 
 	/**
 	 * Optional source object for dependency resolution.

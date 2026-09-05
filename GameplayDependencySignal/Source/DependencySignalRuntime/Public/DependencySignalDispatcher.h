@@ -77,6 +77,9 @@ public:
 	/** Returns the number of currently registered dependency listeners. */
 	int32 GetListenersNum() const;
 
+	/** Returns the number of currently registered any source dependency listeners. */
+	int32 GetAnyListenersNum() const;
+
 	/**
 	 * Updates the validity state of a dependency and broadcasts changes to listeners.
 	 *
@@ -229,6 +232,54 @@ private:
 		FDependencyStateEvent Event_StateChanged;
 	};
 
+	/** Data structure for any registered listener. */
+	struct FAnyDependencyEntry
+	{
+		UE_NONCOPYABLE(FAnyDependencyEntry);
+		FAnyDependencyEntry() = default;
+
+		/** The original dependency request configuration. */
+		FDependencySignalRequest Request;
+
+		/** Set of source objects currently registered for this dependency. */
+		TSet<FObjectKey> RegisteredSources;
+
+		/** The master handle identifying this any source listener registration. */
+		FListenerHandle AnyListenerHandle;
+	};
+
+	/** Groups all any source dependency entries that share the same tag. */
+	struct FAnyDependencyContainer
+	{
+		UE_NONCOPYABLE(FAnyDependencyContainer);
+		explicit FAnyDependencyContainer(const FGameplayTag& InTag)
+			: Tag(InTag)
+		{
+		}
+
+		/** The gameplay tag this container represents. */
+		const FGameplayTag Tag;
+
+		/** List of any source dependency entries associated with this tag. */
+		TArray<TSharedPtr<FAnyDependencyEntry>> Entries;
+
+		/** Container of direct child tags under this container. */
+		FGameplayTagContainer ChildTags;
+	};
+
+	/** Tracks listener handles associated with any source dependency entry. */
+	struct FAnyDepListenerEntry
+	{
+		UE_NONCOPYABLE(FAnyDepListenerEntry);
+		FAnyDepListenerEntry() = default;
+
+		/** List of source-specific listener handles generated for this entry. */
+		TArray<FListenerHandle> Handles;
+
+		/** Reference to the origin any source dependency entry. */
+		TWeakPtr<FAnyDependencyEntry> Entry;
+	};
+
 	// ---------------------------------------------------------------------------
 	// Internal methods
 	// ---------------------------------------------------------------------------
@@ -238,10 +289,17 @@ private:
 
 	/** Registers a dependency signal request and associates it with dependency entries. */
 	FListenerHandle RegisterDependencyContainer(
-		FDependencySignalRequest&& Request, const bool bCreateIfDoesntExist = false);
+		const FDependencySignalRequest& Request, const UObject* SourceObject, const bool bCreateIfDoesntExist = false);
+
+	/** Registers any dependency signal request and associates it with dependency entries. */
+	FListenerHandle RegisterAnyDependencyContainer(FDependencySignalRequest&& Request);
 
 	/** Retrieves the dependency container for a specific source object, creating if needed. */
 	FDepContainer& GetDependencyContainer(const UObject* SourceObject);
+
+	/** Retrieves any dependency container for a specific tag, creating if needed. */
+	FAnyDependencyContainer* GetAnyDependencyContainer(
+		const FGameplayTag& Tag, const bool bCreateIfDoesntExist = false);
 
 	/** Finds or creates a dependency entry for a tag within a source object's container. */
 	FDepEntry* GetDependencyEntry(
@@ -256,11 +314,17 @@ private:
 	/** Creates the full hierarchy of dependency entries for a tag and its parents. */
 	void CreateDependencyHierarchy(FDepContainer& Container, const FGameplayTag& Tag) const;
 
+	/** Creates any dependency container for a tag and its parents. */
+	FAnyDependencyContainer* CreateAnyDependencyContainer(const FGameplayTag& Tag);
+
 	/** Shares the validity state of a root entry to all its child listeners. */
 	void ShareDependencyState(FDepEntry* RootEntry, const UObject* SourceObject, const bool bForceRetrigger);
 
 	/** Handles state changes for a single entry and shares to children. */
 	void HandleDependencyStateChanges(FDepEntry* Entry, const UObject* SourceObject, const bool bForceRetrigger);
+
+	/** Validates any dependencies associated with the specified tag and source object. */
+	void ValidateAnyDependency(const FGameplayTag& Tag, const UObject* SourceObject, const bool bForceRetrigger);
 
 	/** Determines the appropriate source object for broadcasting validity changes. */
 	UObject* GetSourceObjForBroadcast(const UObject* SourceObject) const;
@@ -274,6 +338,12 @@ private:
 
 	/** Map from listener handles to their listener entry data. */
 	TMap<FListenerHandle, TUniquePtr<FDepListenerEntry>> HandleToListener;
+
+	/** Map from any source dependency entries by their tag. */
+	TMap<FGameplayTag, TUniquePtr<FAnyDependencyContainer>> AnyDependencyByTag;
+
+	/** Map from listener handles to their any source listener entries. */
+	TMap<FListenerHandle, TUniquePtr<FAnyDepListenerEntry>> AnyListenerByHandle;
 
 	/**
 	 * The root tags that define the base of the dependency hierarchy.

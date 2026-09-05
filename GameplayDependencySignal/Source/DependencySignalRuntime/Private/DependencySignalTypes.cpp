@@ -22,6 +22,17 @@ FDependencySignalRequest& FDependencySignalRequest::AddSource(const UObject* InS
 	return *this;
 }
 
+FDependencySignalRequest& FDependencySignalRequest::SetAnySource(const bool bAny)
+{
+	bAnySource = bAny;
+	return *this;
+}
+
+FDependencySignalRequest& FDependencySignalRequest::MarkAsAnySource()
+{
+	return SetAnySource(true);
+}
+
 bool FDependencySignalListenerHandle::Unregister()
 {
 	if (Dispatcher.IsValid())

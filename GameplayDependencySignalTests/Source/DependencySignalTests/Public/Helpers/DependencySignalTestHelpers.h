@@ -68,7 +68,8 @@ namespace DependencySignal::Tests
 	};
 
 	FString GetRegistrationTagsString(const FGameplayTagContainer& InTags);
-	FString GetValidationsSequenceString(const TArray<FTestDependency>& InValidationQueue);
+	FString GetValidationsSequenceString(
+		const TArray<FTestDependency>& InPreQueue, const TArray<FTestDependency>& InPostQueue);
 
 } // namespace DependencySignal::Tests
 

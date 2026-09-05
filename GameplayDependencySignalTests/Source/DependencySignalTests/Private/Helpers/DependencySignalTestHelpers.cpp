@@ -35,16 +35,27 @@ namespace DependencySignal::Tests
 		return Str;
 	}
 
-	FString GetValidationsSequenceString(const TArray<FTestDependency>& InValidationQueue)
+	FString GetValidationsSequenceString(
+		const TArray<FTestDependency>& InPreQueue, const TArray<FTestDependency>& InPostQueue)
 	{
 		FString Str;
 		FString Suffix = TEXT(" -> ");
 
-		for (const FTestDependency& Queue : InValidationQueue)
-		{
-			Str += Queue.GetTagString();
-			Str += Suffix;
-		}
+		const auto& FillString = [&](const TArray<FTestDependency>& InQueue, const FString& Prefix) {
+			if (!InQueue.IsEmpty())
+			{
+				Str += Prefix + " ";
+			}
+
+			for (const FTestDependency& Queue : InQueue)
+			{
+				Str += Queue.GetTagString();
+				Str += Suffix;
+			}
+		};
+
+		FillString(InPreQueue, "Pre");
+		FillString(InPostQueue, "Post");
 
 		Str.RemoveFromEnd(Suffix);
 		return Str;
