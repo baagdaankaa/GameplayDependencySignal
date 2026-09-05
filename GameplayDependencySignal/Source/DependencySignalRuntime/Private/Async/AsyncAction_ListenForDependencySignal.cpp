@@ -3,7 +3,7 @@
 #include "Async/AsyncAction_ListenForDependencySignal.h"
 
 UAsyncAction_ListenForDependencySignal* UAsyncAction_ListenForDependencySignal::ListenForDependencySignal(
-	UObject* WorldContextObject, FGameplayTagContainer Tags, const UObject* SourceObject,
+	UObject* WorldContextObject, FGameplayTagContainer Tags, const bool bAnySource, const UObject* SourceObject,
 	const bool bDestroyAfterSuccessfulValidation)
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
@@ -14,6 +14,7 @@ UAsyncAction_ListenForDependencySignal* UAsyncAction_ListenForDependencySignal::
 
 	UAsyncAction_ListenForDependencySignal* Action = NewObject<UAsyncAction_ListenForDependencySignal>();
 	Action->WorldPtr = World;
+	Action->bAnySource = bAnySource;
 	Action->SourceObject = SourceObject;
 	Action->DependencyTags = MoveTemp(Tags);
 	Action->bDestroyAfterSuccessfulValidation = bDestroyAfterSuccessfulValidation;
@@ -30,6 +31,7 @@ void UAsyncAction_ListenForDependencySignal::Activate()
 	{
 		ListenerHandle = MakeSignalRequest(World)
 							 .AddTags(DependencyTags)
+							 .SetAnySource(bAnySource)
 							 .AddSource(SourceObject.Get())
 							 .Bind(this, &ThisClass::HandleDependencyValidation)
 							 .Register();

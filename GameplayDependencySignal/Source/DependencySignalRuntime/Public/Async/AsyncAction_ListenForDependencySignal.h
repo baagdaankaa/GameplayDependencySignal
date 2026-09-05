@@ -25,6 +25,7 @@ public:
 	 *
 	 * @param WorldContextObject	The object whose world context is used for subsystem access.
 	 * @param Tags					The gameplay tags representing dependencies to monitor.
+	 * @param bAnySource			If true, it originates from any source object, not from a specific source.
 	 * @param SourceObject			Optional context object used by providers to locate dependencies.
 	 * @param bDestroyAfterSuccessfulValidation	If true, automatically destroys the action after receiving a valid
 	 * signal.
@@ -34,8 +35,8 @@ public:
 		DisplayName = "Listen For Dependency Signal Validity",
 		meta = (WorldContext = "WorldContextObject", BlueprintInternalUseOnly = "true"))
 	static UE_API UAsyncAction_ListenForDependencySignal* ListenForDependencySignal(UObject* WorldContextObject,
-		UPARAM(meta = (Categories = "DependencySignal")) FGameplayTagContainer Tags, const UObject* SourceObject,
-		const bool bDestroyAfterSuccessfulValidation = false);
+		UPARAM(meta = (Categories = "DependencySignal")) FGameplayTagContainer Tags, const bool bAnySource,
+		const UObject* SourceObject, const bool bDestroyAfterSuccessfulValidation = false);
 
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 		FAsyncDependencyStateDelegate, const bool, bIsValid, UObject*, SourceObject);
@@ -55,6 +56,9 @@ private:
 
 	/** Weak reference to the world context used for subsystem access. */
 	TWeakObjectPtr<UWorld> WorldPtr;
+
+	/** Originating from any source object or from a specific source object. */
+	bool bAnySource = false;
 
 	/** Weak reference to the source object used for dependency resolution. */
 	TWeakObjectPtr<const UObject> SourceObject;
