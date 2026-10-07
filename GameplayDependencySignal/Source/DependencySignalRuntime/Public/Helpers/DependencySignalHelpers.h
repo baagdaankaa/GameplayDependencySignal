@@ -11,9 +11,9 @@ struct FGameplayTag;
 class UE_API FDependencySignalHelpers
 {
 public:
-	static void ValidateFor(const UActorComponent* Component, const FDependencySignalDispatcher& Dispatcher,
+	static void ValidateFor(const UActorComponent* Component, FDependencySignalDispatcher& Dispatcher,
 		const FGameplayTag& Tag, const bool bIsValid, const bool bForceRetrigger = false);
-	static void ValidateFor(const AActor* Actor, const FDependencySignalDispatcher& Dispatcher, const FGameplayTag& Tag,
+	static void ValidateFor(const AActor* Actor, FDependencySignalDispatcher& Dispatcher, const FGameplayTag& Tag,
 		const bool bIsValid, const bool bForceRetrigger = false);
 
 protected:

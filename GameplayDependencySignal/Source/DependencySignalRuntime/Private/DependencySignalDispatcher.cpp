@@ -1,9 +1,24 @@
-﻿// Copyright Bohdan Sofronii. All Rights Reserved.
+// Copyright Bohdan Sofronii. All Rights Reserved.
 
 #include "DependencySignalDispatcher.h"
 
 #include "DependencySignalRuntime.h"
 #include "Algo/AllOf.h"
+
+namespace DependencySignal::Private
+{
+	/**
+	 * Whether a listener can be dropped for good.
+	 *
+	 * A callback bound to a UObject reports IsBound() == false as soon as that object is marked as garbage,
+	 * so for those we wait until the object has actually been collected. Other bindings (SP, raw, static,
+	 * lambda) or an empty delegate can never become bound again, so an unbound delegate means dead.
+	 */
+	bool IsListenerDead(const bool bHasOwner, const FWeakObjectPtr& Owner, const FDependencyStateEvent& Event)
+	{
+		return bHasOwner ? Owner.IsStale(/* bIncludingGarbage */ false) : !Event.IsBound();
+	}
+} // namespace DependencySignal::Private
 
 FDependencySignalDispatcher::FDependencySignalDispatcher(
 	const FGameplayTagContainer& InRootTags, const UObject* InWorldContext)
@@ -45,15 +60,20 @@ void FDependencySignalDispatcher::Unregister(FListenerHandle& ListenerHandle)
 
 	if (TUniquePtr<FAnyDepListenerEntry> const* Listener = AnyListenerByHandle.Find(TempHandle))
 	{
-		for (const FListenerHandle& Handle : Listener->Get()->Handles)
+		// Snapshot the per-source handles and the origin entry before mutating any map:
+		// Listener points into AnyListenerByHandle, which we edit below.
+		const TArray<FListenerHandle> PerSourceHandles = Listener->Get()->Handles;
+		const TSharedPtr<FAnyDependencyEntry> Entry = Listener->Get()->Entry.Pin();
+
+		// The per-source listeners generated for this any-source registration live in
+		// HandleToListener; remove them so they stop firing on future Validate() calls.
+		for (const FListenerHandle& Handle : PerSourceHandles)
 		{
-			AnyListenerByHandle.Remove(Handle);
+			HandleToListener.Remove(Handle);
 		}
 
-		if (Listener->Get()->Entry.IsValid())
+		if (Entry.IsValid())
 		{
-			const TSharedPtr<FAnyDependencyEntry> Entry = Listener->Get()->Entry.Pin();
-
 			for (auto It = Entry->Request.DependencyTags.CreateConstIterator(); It; ++It)
 			{
 				if (TUniquePtr<FAnyDependencyContainer> const* Container = AnyDependencyByTag.Find(*It);
@@ -77,8 +97,15 @@ bool FDependencySignalDispatcher::IsValidDependency(const FGameplayTag& Tag, con
 bool FDependencySignalDispatcher::IsValidDependency(
 	const FGameplayTagContainer& Tags, const UObject* SourceObject) const
 {
-	return Algo::AllOf(Tags, [&](const FGameplayTag& Tag) {
-		return IsValidDependency(Tag, SourceObject);
+	return AreDependenciesValid(FindDependencyContainer(SourceObject), Tags);
+}
+
+bool FDependencySignalDispatcher::AreDependenciesValid(
+	const FDepContainer* Container, const FGameplayTagContainer& Tags) const
+{
+	return Algo::AllOf(Tags, [Container](const FGameplayTag& Tag) {
+		const FDepEntry* Entry = Container ? Container->FindEntry(Tag) : nullptr;
+		return Entry && Entry->IsHierarchyValid();
 	});
 }
 
@@ -93,18 +120,14 @@ int32 FDependencySignalDispatcher::GetAnyListenersNum() const
 }
 
 void FDependencySignalDispatcher::Validate(
-	const FGameplayTag& Tag, const bool bIsValid, const UObject* SourceObject, const bool bForceRetrigger) const
+	const FGameplayTag& Tag, const bool bIsValid, const UObject* SourceObject, const bool bForceRetrigger)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(
-		*FString::Printf(TEXT("FDependencySignalDispatcher::Validate [%s]"), *Tag.ToString()));
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDependencySignalDispatcher::Validate);
 
-	// the `const` on the method is a lie
-	FDependencySignalDispatcher& MutableThis = const_cast<FDependencySignalDispatcher&>(*this);
-
-	FDepEntry* Entry = MutableThis.GetDependencyEntry(SourceObject, Tag, /* bCreateIfDoesntExist */ true);
+	FDepEntry* Entry = GetDependencyEntry(SourceObject, Tag, /* bCreateIfDoesntExist */ true);
 	check(Entry != nullptr);
 
-	MutableThis.ValidateAnyDependency(Tag, SourceObject, bForceRetrigger);
+	ValidateAnyDependency(Tag, SourceObject, bForceRetrigger);
 
 	if (bForceRetrigger || Entry->State.bIsValid != bIsValid)
 	{
@@ -112,10 +135,10 @@ void FDependencySignalDispatcher::Validate(
 
 		if (bForceRetrigger || Entry->State.bIsValidParent)
 		{
-			MutableThis.HandleDependencyStateChanges(Entry, SourceObject, bForceRetrigger);
+			HandleDependencyStateChanges(Entry, SourceObject, bForceRetrigger);
 		}
 
-		MutableThis.ShareDependencyState(Entry, SourceObject, bForceRetrigger);
+		ShareDependencyState(Entry, SourceObject, bForceRetrigger);
 	}
 }
 
@@ -123,9 +146,8 @@ void FDependencySignalDispatcher::Reset()
 {
 	SourceToDependency.Empty();
 	HandleToListener.Empty();
-
-	RootTags.Reset();
-	WorldContext.Reset();
+	AnyDependencyByTag.Empty();
+	AnyListenerByHandle.Empty();
 }
 
 bool FDependencySignalDispatcher::IsValidDependencyTags(const FGameplayTagContainer& Tags) const
@@ -148,8 +170,7 @@ bool FDependencySignalDispatcher::IsValidDependencyTag(const FGameplayTag& Tag) 
 
 FDependencySignalDispatcher::FListenerHandle FDependencySignalDispatcher::GenerateNewListenerHandle()
 {
-	static uint64 HandleId = 0;
-	return FListenerHandle(++HandleId, AsShared());
+	return FListenerHandle(++HandleIdCounter, AsShared());
 }
 
 FDependencySignalDispatcher::FListenerHandle FDependencySignalDispatcher::RegisterDependencyContainer(
@@ -161,8 +182,7 @@ FDependencySignalDispatcher::FListenerHandle FDependencySignalDispatcher::Regist
 		return FListenerHandle();
 	}
 
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(
-		TEXT("FDependencySignalDispatcher::RegisterDependencyContainer [%s]"), *Request.DependencyTags.ToString()));
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDependencySignalDispatcher::RegisterDependencyContainer);
 
 	const FListenerHandle& NewHandle = GenerateNewListenerHandle();
 	check(NewHandle.IsValid());
@@ -170,6 +190,12 @@ FDependencySignalDispatcher::FListenerHandle FDependencySignalDispatcher::Regist
 	TUniquePtr<FDepListenerEntry> NewListenerEntry = MakeUnique<FDepListenerEntry>();
 	NewListenerEntry->DependencyTags = Request.DependencyTags;
 	NewListenerEntry->Event_StateChanged = Request.OnDependencyStateChanged;
+
+	if (const UObject* Owner = Request.OnDependencyStateChanged.GetUObject())
+	{
+		NewListenerEntry->Owner = FWeakObjectPtr(Owner);
+		NewListenerEntry->bHasOwner = true;
+	}
 
 	HandleToListener.Add(NewHandle, MoveTemp(NewListenerEntry));
 
@@ -209,25 +235,42 @@ FDependencySignalDispatcher::FListenerHandle FDependencySignalDispatcher::Regist
 	NewEntry->RegisteredSources.Reserve(SourceToDependency.Num());
 	NewEntry->AnyListenerHandle = NewHandle;
 
+	if (const UObject* Owner = NewEntry->Request.OnDependencyStateChanged.GetUObject())
+	{
+		NewEntry->Owner = FWeakObjectPtr(Owner);
+		NewEntry->bHasOwner = true;
+	}
+
+	// `Request` was moved into NewEntry above and is empty from here on: always use NewEntry->Request.
+	const FDependencySignalRequest& AnyRequest = NewEntry->Request;
+
 	TUniquePtr<FAnyDepListenerEntry> NewListenerEntry = MakeUnique<FAnyDepListenerEntry>();
 	NewListenerEntry->Handles.Reserve(SourceToDependency.Num());
 	NewListenerEntry->Entry = NewEntry;
 
+	// Collect sources first: registering creates entries inside the containers we would otherwise be iterating.
+	TArray<const UObject*, TInlineAllocator<16>> ExistingSources;
+	ExistingSources.Reserve(SourceToDependency.Num());
 	for (const TPair<FObjectKey, TUniquePtr<FDepContainer>>& SourceDependency : SourceToDependency)
 	{
-		const UObject* SourceObject = SourceDependency.Key.ResolveObjectPtr();
-		if (!IsValid(SourceObject))
+		if (const UObject* SourceObject = SourceDependency.Key.ResolveObjectPtr(); IsValid(SourceObject))
 		{
-			continue;
+			ExistingSources.Add(SourceObject);
 		}
+	}
 
-		const FListenerHandle& Handle = RegisterDependencyContainer(Request, SourceObject);
+	for (const UObject* SourceObject : ExistingSources)
+	{
+		// Create missing entries so the listener is attached to every one of its tags for this source;
+		// otherwise a tag validated later would never reach it (the source is already marked as registered).
+		const FListenerHandle& Handle =
+			RegisterDependencyContainer(AnyRequest, SourceObject, /* bCreateIfDoesntExist */ true);
 		if (!Handle.IsValid())
 		{
 			continue;
 		}
 
-		NewEntry->RegisteredSources.Add(SourceDependency.Key);
+		NewEntry->RegisteredSources.Add(FObjectKey(SourceObject));
 		NewListenerEntry->Handles.Add(Handle);
 	}
 
@@ -245,9 +288,6 @@ FDependencySignalDispatcher::FListenerHandle FDependencySignalDispatcher::Regist
 FDependencySignalDispatcher::FDepContainer& FDependencySignalDispatcher::GetDependencyContainer(
 	const UObject* SourceObject)
 {
-	// if a SourceObject was removed by the GC, we must remove its dependency
-	SourceToDependency.Remove(nullptr);
-
 	// if SourceObject is nullptr,
 	// we use World as SourceObject to have a dependency container for the local player client
 	const UObject* RealSourceObject = IsValid(SourceObject) ? SourceObject : WorldContext.Get();
@@ -260,6 +300,71 @@ FDependencySignalDispatcher::FDepContainer& FDependencySignalDispatcher::GetDepe
 	}
 
 	return *(*SourceToDependency.Find(RealSourceObject));
+}
+
+const FDependencySignalDispatcher::FDepContainer* FDependencySignalDispatcher::FindDependencyContainer(
+	const UObject* SourceObject) const
+{
+	const UObject* RealSourceObject = IsValid(SourceObject) ? SourceObject : WorldContext.Get();
+
+	if (const TUniquePtr<FDepContainer>* Container = SourceToDependency.Find(RealSourceObject))
+	{
+		return Container->Get();
+	}
+
+	return nullptr;
+}
+
+void FDependencySignalDispatcher::PruneStaleSources()
+{
+	for (auto It = SourceToDependency.CreateIterator(); It; ++It)
+	{
+		if (!It.Key().ResolveObjectPtr())
+		{
+			It.RemoveCurrent();
+		}
+	}
+
+	// Listeners are never dropped on the notify path while their owner is merely garbage-flagged; this is where
+	// they go once the owner is actually collected. Their handles left in FDepEntry::ListenerHandles are
+	// cleaned lazily by HandleDependencyStateChanges.
+	for (auto It = HandleToListener.CreateIterator(); It; ++It)
+	{
+		const FDepListenerEntry& Listener = *It.Value();
+		if (DependencySignal::Private::IsListenerDead(Listener.bHasOwner, Listener.Owner, Listener.Event_StateChanged))
+		{
+			It.RemoveCurrent();
+		}
+	}
+
+	// Each any-source registration owns exactly one FAnyDepListenerEntry, so iterating this map
+	// prunes every FAnyDependencyEntry::RegisteredSources set once.
+	TArray<FListenerHandle> DeadAnyHandles;
+	for (const TPair<FListenerHandle, TUniquePtr<FAnyDepListenerEntry>>& Pair : AnyListenerByHandle)
+	{
+		const TSharedPtr<FAnyDependencyEntry> Entry = Pair.Value->Entry.Pin();
+		if (!Entry.IsValid()
+			|| DependencySignal::Private::IsListenerDead(
+				Entry->bHasOwner, Entry->Owner, Entry->Request.OnDependencyStateChanged))
+		{
+			DeadAnyHandles.Add(Pair.Key);
+			continue;
+		}
+
+		for (auto It = Entry->RegisteredSources.CreateIterator(); It; ++It)
+		{
+			if (!It->ResolveObjectPtr())
+			{
+				It.RemoveCurrent();
+			}
+		}
+	}
+
+	// Unregister outside the loop above: it mutates AnyListenerByHandle.
+	for (FListenerHandle& DeadHandle : DeadAnyHandles)
+	{
+		Unregister(DeadHandle);
+	}
 }
 
 FDependencySignalDispatcher::FAnyDependencyContainer* FDependencySignalDispatcher::GetAnyDependencyContainer(
@@ -278,8 +383,7 @@ FDependencySignalDispatcher::FAnyDependencyContainer* FDependencySignalDispatche
 FDependencySignalDispatcher::FDepEntry* FDependencySignalDispatcher::GetDependencyEntry(
 	const UObject* SourceObject, const FGameplayTag& Tag, bool bCreateIfDoesntExist)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(
-		*FString::Printf(TEXT("FDependencySignalDispatcher::GetDependencyEntry [%s]"), *Tag.ToString()));
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDependencySignalDispatcher::GetDependencyEntry);
 
 	FDepContainer& Container = GetDependencyContainer(SourceObject);
 
@@ -302,7 +406,9 @@ FDependencySignalDispatcher::FDepEntry* FDependencySignalDispatcher::GetDependen
 const FDependencySignalDispatcher::FDepEntry* FDependencySignalDispatcher::GetDependencyEntry(
 	const UObject* SourceObject, const FGameplayTag& Tag) const
 {
-	return const_cast<FDependencySignalDispatcher*>(this)->GetDependencyEntry(SourceObject, Tag);
+	// Read-only lookup: never create a container or entry as a side effect of a query.
+	const FDepContainer* Container = FindDependencyContainer(SourceObject);
+	return Container ? Container->FindEntry(Tag) : nullptr;
 }
 
 void FDependencySignalDispatcher::InitDependencyEntry(FDepEntry& NewEntry) const
@@ -315,8 +421,7 @@ void FDependencySignalDispatcher::InitDependencyEntry(FDepEntry& NewEntry) const
 
 void FDependencySignalDispatcher::CreateDependencyHierarchy(FDepContainer& Container, const FGameplayTag& Tag) const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(
-		*FString::Printf(TEXT("FDependencySignalDispatcher::CreateDependencyHierarchy [%s]"), *Tag.ToString()));
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDependencySignalDispatcher::CreateDependencyHierarchy);
 
 	check(Tag.IsValid());
 
@@ -355,8 +460,7 @@ void FDependencySignalDispatcher::CreateDependencyHierarchy(FDepContainer& Conta
 FDependencySignalDispatcher::FAnyDependencyContainer* FDependencySignalDispatcher::CreateAnyDependencyContainer(
 	const FGameplayTag& Tag)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(
-		*FString::Printf(TEXT("FDependencySignalDispatcher::CreateAnyDependencyContainer [%s]"), *Tag.ToString()));
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDependencySignalDispatcher::CreateAnyDependencyContainer);
 
 	check(Tag.IsValid());
 	check(!AnyDependencyByTag.Contains(Tag));
@@ -392,8 +496,7 @@ void FDependencySignalDispatcher::ShareDependencyState(
 {
 	check(RootEntry != nullptr);
 
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(
-		*FString::Printf(TEXT("FDependencySignalDispatcher::ShareDependencyState [%s]"), *RootEntry->Tag.ToString()));
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDependencySignalDispatcher::ShareDependencyState);
 
 	TQueue<FDepEntry*, EQueueMode::SingleThreaded> Queue;
 	Queue.Enqueue(RootEntry);
@@ -431,8 +534,9 @@ void FDependencySignalDispatcher::ShareDependencyState(
 void FDependencySignalDispatcher::HandleDependencyStateChanges(
 	FDepEntry* Entry, const UObject* SourceObject, const bool bForceRetrigger)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(
-		TEXT("FDependencySignalDispatcher::HandleDependencyStateChanges [%s]"), *Entry->Tag.ToString()));
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDependencySignalDispatcher::HandleDependencyStateChanges);
+
+	const FDepContainer* Container = FindDependencyContainer(SourceObject);
 
 	for (int32 Index = Entry->ListenerHandles.Num() - 1; Index >= 0; --Index)
 	{
@@ -449,12 +553,24 @@ void FDependencySignalDispatcher::HandleDependencyStateChanges(
 
 		if (!ListenerEntry->Event_StateChanged.IsBound())
 		{
-			Entry->ListenerHandles.RemoveAt(Index);
-			HandleToListener.Remove(ListenerHandle);
+			// An unbound UObject callback only means its owner is garbage-flagged right now: skip it and let
+			// the post-GC PruneStaleSources() drop it once the owner is collected. Anything else can never rebind.
+			if (DependencySignal::Private::IsListenerDead(
+					ListenerEntry->bHasOwner, ListenerEntry->Owner, ListenerEntry->Event_StateChanged))
+			{
+				Entry->ListenerHandles.RemoveAt(Index);
+				HandleToListener.Remove(ListenerHandle);
+			}
+			else
+			{
+				DS_UE_LOG(Verbose, TEXT("Skipping listener %s for [%s]: callback owner is not safe to execute"),
+					*ListenerHandle.ToString(), *Entry->Tag.ToString());
+			}
+
 			continue;
 		}
 
-		const bool bIsValidAllDependency = IsValidDependency(ListenerEntry->DependencyTags, SourceObject);
+		const bool bIsValidAllDependency = AreDependenciesValid(Container, ListenerEntry->DependencyTags);
 
 		if (ListenerEntry->bWasValid != bIsValidAllDependency || bForceRetrigger)
 		{
@@ -468,8 +584,7 @@ void FDependencySignalDispatcher::HandleDependencyStateChanges(
 void FDependencySignalDispatcher::ValidateAnyDependency(
 	const FGameplayTag& Tag, const UObject* SourceObject, const bool bForceRetrigger)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(
-		*FString::Printf(TEXT("FDependencySignalDispatcher::ValidateAnyDependency [%s]"), *Tag.ToString()));
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDependencySignalDispatcher::ValidateAnyDependency);
 
 	FAnyDependencyContainer* Container = GetAnyDependencyContainer(Tag);
 	if (!Container)
@@ -487,7 +602,10 @@ void FDependencySignalDispatcher::ValidateAnyDependency(
 			continue;
 		}
 
-		const FListenerHandle& Handle = RegisterDependencyContainer(Entry->Request, SourceObject);
+		// Create missing entries so a multi-tag listener is attached to all of its tags for this source,
+		// not only to the one being validated now (the source is marked as registered below).
+		const FListenerHandle& Handle =
+			RegisterDependencyContainer(Entry->Request, SourceObject, /* bCreateIfDoesntExist */ true);
 
 		if (!Handle.IsValid())
 		{

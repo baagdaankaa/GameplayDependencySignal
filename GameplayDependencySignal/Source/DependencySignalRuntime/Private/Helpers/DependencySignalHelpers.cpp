@@ -6,7 +6,7 @@
 #include "GameFramework/GameStateBase.h"
 
 void FDependencySignalHelpers::ValidateFor(const UActorComponent* Component,
-	const FDependencySignalDispatcher& Dispatcher, const FGameplayTag& Tag, const bool bIsValid,
+	FDependencySignalDispatcher& Dispatcher, const FGameplayTag& Tag, const bool bIsValid,
 	const bool bForceRetrigger)
 {
 	if (IsValid(Component))
@@ -15,7 +15,7 @@ void FDependencySignalHelpers::ValidateFor(const UActorComponent* Component,
 	}
 }
 
-void FDependencySignalHelpers::ValidateFor(const AActor* Actor, const FDependencySignalDispatcher& Dispatcher,
+void FDependencySignalHelpers::ValidateFor(const AActor* Actor, FDependencySignalDispatcher& Dispatcher,
 	const FGameplayTag& Tag, const bool bIsValid, const bool bForceRetrigger)
 {
 	if (!IsValid(Actor))

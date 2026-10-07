@@ -6,6 +6,7 @@
 #include "DependencySignalRuntime.h"
 #include "Helpers/DependencySignalHelpers.h"
 #include "Settings/DependencySignalSettings.h"
+#include "UObject/UObjectGlobals.h"
 
 #define LOG_SUBSYSTEM_NOT_READY(Operation) \
 	DS_UE_LOG(Error, TEXT("Unable to %s dependency. DependencySignalSubsystem not initialized"), TEXT(Operation))
@@ -130,6 +131,12 @@ void UDependencySignalSubsystem::PostInitialize()
 		Dispatcher = MakeShared<FDependencySignalDispatcher>(Settings->GetRootTags(), this);
 	}
 
+	if (!PostGarbageCollectHandle.IsValid())
+	{
+		PostGarbageCollectHandle =
+			FCoreUObjectDelegates::GetPostGarbageCollect().AddUObject(this, &ThisClass::HandlePostGarbageCollect);
+	}
+
 	if (!Resolver.IsValid())
 	{
 		Resolver = MakeUnique<FDependencySignalProviderResolver>(Settings->GetProviderClasses(), GetWorld());
@@ -147,6 +154,9 @@ void UDependencySignalSubsystem::PostInitialize()
 
 void UDependencySignalSubsystem::PreDeinitialize()
 {
+	FCoreUObjectDelegates::GetPostGarbageCollect().Remove(PostGarbageCollectHandle);
+	PostGarbageCollectHandle.Reset();
+
 	if (Dispatcher.IsValid())
 	{
 		Dispatcher.Reset();
@@ -167,6 +177,14 @@ void UDependencySignalSubsystem::PreDeinitialize()
 	}
 
 	Super::PreDeinitialize();
+}
+
+void UDependencySignalSubsystem::HandlePostGarbageCollect() const
+{
+	if (Dispatcher.IsValid())
+	{
+		Dispatcher->PruneStaleSources();
+	}
 }
 
 #undef LOG_SUBSYSTEM_NOT_READY

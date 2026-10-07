@@ -1,4 +1,4 @@
-﻿// Copyright Bohdan Sofronii. All Rights Reserved.
+// Copyright Bohdan Sofronii. All Rights Reserved.
 
 #pragma once
 
@@ -17,6 +17,9 @@
  *
  * This class uses a hierarchical approach where dependencies can have parent dependencies,
  * and validity is determined by both the local state and the parent state.
+ *
+ * Threading: this dispatcher is not internally synchronized. All public methods are expected to be
+ * called from the game thread.
  */
 class UE_API FDependencySignalDispatcher : public TSharedFromThis<FDependencySignalDispatcher>
 {
@@ -89,7 +92,7 @@ public:
 	 * @param bForceRetrigger		If true, notifies listeners even if the state didn't change.
 	 */
 	void Validate(const FGameplayTag& Tag, const bool bIsValid, const UObject* SourceObject = nullptr,
-		const bool bForceRetrigger = false) const;
+		const bool bForceRetrigger = false);
 
 	/**
 	 * Resets all dependency states and listener registrations.
@@ -98,6 +101,15 @@ public:
 	 * After reset, all dependencies are considered invalid until re-validated.
 	 */
 	void Reset();
+
+	/**
+	 * Removes dependency containers and any source registrations whose source objects were garbage collected,
+	 * and listeners whose owner was collected (or whose non-UObject binding expired).
+	 *
+	 * The dispatcher does not hook into GC itself: the owner (UDependencySignalSubsystem) calls this after every
+	 * garbage collection, and tests call it explicitly after CollectGarbage().
+	 */
+	void PruneStaleSources();
 
 protected:
 	/** Determines whether a set of dependency tags is valid. */
@@ -187,6 +199,17 @@ private:
 			return nullptr;
 		}
 
+		/** Finds an existing dependency entry by tag (const version). */
+		const FDepEntry* FindEntry(const FGameplayTag& Tag) const
+		{
+			if (const TUniquePtr<FDepEntry>* EntryPtr = TagToEntry.Find(Tag))
+			{
+				return EntryPtr->Get();
+			}
+
+			return nullptr;
+		}
+
 		/** Creates a dependency entry for the given tag. */
 		FDepEntry* AddEntry(const FGameplayTag& Tag)
 		{
@@ -220,10 +243,20 @@ private:
 	{
 		UE_NONCOPYABLE(FDepListenerEntry);
 
-		FDepListenerEntry() = default;
+		FDepListenerEntry()
+			: bWasValid(0)
+			, bHasOwner(0)
+		{
+		}
 
 		/** Whether the dependency was valid the last time the listener was notified. */
 		uint8 bWasValid : 1;
+
+		/** Whether the callback was bound to a UObject (BindUObject / BindWeakLambda / BindUFunction). */
+		uint8 bHasOwner : 1;
+
+		/** The UObject the callback was bound to at registration; the listener lives until it is collected. */
+		FWeakObjectPtr Owner;
 
 		/** Container of dependency tags this listener is monitoring. */
 		FGameplayTagContainer DependencyTags;
@@ -246,6 +279,12 @@ private:
 
 		/** The master handle identifying this any source listener registration. */
 		FListenerHandle AnyListenerHandle;
+
+		/** Whether the callback was bound to a UObject (BindUObject / BindWeakLambda / BindUFunction). */
+		bool bHasOwner = false;
+
+		/** The UObject the callback was bound to at registration; the registration lives until it is collected. */
+		FWeakObjectPtr Owner;
 	};
 
 	/** Groups all any source dependency entries that share the same tag. */
@@ -276,7 +315,7 @@ private:
 		/** List of source-specific listener handles generated for this entry. */
 		TArray<FListenerHandle> Handles;
 
-		/** Reference to the origin any source dependency entry. */
+		/** Reference to the origin of any source dependency entry. */
 		TWeakPtr<FAnyDependencyEntry> Entry;
 	};
 
@@ -296,6 +335,15 @@ private:
 
 	/** Retrieves the dependency container for a specific source object, creating if needed. */
 	FDepContainer& GetDependencyContainer(const UObject* SourceObject);
+
+	/** Finds the dependency container for a source object without creating one. */
+	const FDepContainer* FindDependencyContainer(const UObject* SourceObject) const;
+
+	/**
+	 * Checks whether every tag resolves to a hierarchy valid entry within an already resolved container.
+	 * Lets callers resolve the source container once and reuse it across many tags/listeners.
+	 */
+	bool AreDependenciesValid(const FDepContainer* Container, const FGameplayTagContainer& Tags) const;
 
 	/** Retrieves any dependency container for a specific tag, creating if needed. */
 	FAnyDependencyContainer* GetAnyDependencyContainer(
@@ -356,6 +404,9 @@ private:
 	 * for local session dependency resolution when none is explicitly provided.
 	 */
 	FWeakObjectPtr WorldContext;
+
+	/** Monotonic counter used to generate unique listener handle ids for this dispatcher instance. */
+	uint64 HandleIdCounter = 0;
 };
 
 #undef UE_API

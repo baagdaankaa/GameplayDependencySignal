@@ -164,11 +164,17 @@ protected:
 	//~ End of UWorldSubsystem Interface
 
 private:
+	/** Drops dispatcher state for collected sources and listener owners after every garbage collection. */
+	void HandlePostGarbageCollect() const;
+
 	/** Pointer to the dependency signal dispatcher managing listener registration. */
 	TSharedPtr<FDependencySignalDispatcher> Dispatcher;
 
 	/** Pointer to the provider resolver that locates and instantiates providers. */
 	TUniquePtr<FDependencySignalProviderResolver> Resolver;
+
+	/** Binding to FCoreUObjectDelegates::GetPostGarbageCollect(). */
+	FDelegateHandle PostGarbageCollectHandle;
 };
 
 template <class T>
