@@ -23,6 +23,11 @@
  */
 class UE_API FDependencySignalDispatcher : public TSharedFromThis<FDependencySignalDispatcher>
 {
+
+#if WITH_GAMEPLAY_DEBUGGER
+	friend class FGameplayDebuggerCategory_DependencySignal;
+#endif // WITH_GAMEPLAY_DEBUGGER
+
 public:
 	UE_NONCOPYABLE(FDependencySignalDispatcher);
 
@@ -181,6 +186,10 @@ private:
 	struct FDepContainer
 	{
 		UE_NONCOPYABLE(FDepContainer);
+
+#if WITH_GAMEPLAY_DEBUGGER
+		friend class FGameplayDebuggerCategory_DependencySignal;
+#endif // WITH_GAMEPLAY_DEBUGGER
 
 		FDepContainer() = default;
 		explicit FDepContainer(const TFunction<void(FDepEntry&)>& InitEntry)

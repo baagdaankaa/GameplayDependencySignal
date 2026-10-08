@@ -29,6 +29,10 @@ class UDependencySignalSubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
 
+#if WITH_GAMEPLAY_DEBUGGER
+	friend class FGameplayDebuggerCategory_DependencySignal;
+#endif // WITH_GAMEPLAY_DEBUGGER
+
 public:
 	/**
 	 * Retrieves the dependency signal subsystem instance for a given world context.

@@ -20,7 +20,10 @@ public class DependencySignalRuntime : ModuleRules
                 "CoreUObject",
                 "Engine",
                 "DeveloperSettings",
+                "InputCore",
             }
         );
+
+        SetupGameplayDebuggerSupport(Target);
     }
 }
