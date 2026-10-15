@@ -94,6 +94,30 @@ void UDependencySignalSubsystem::Validate(
 	}
 }
 
+void UDependencySignalSubsystem::UnlinkLocalSource(const UObject* LinkOwner, const bool bForceRetrigger) const
+{
+	if (Dispatcher.IsValid())
+	{
+		FDependencySignalHelpers::UnlinkLocalFor(LinkOwner, *Dispatcher, bForceRetrigger);
+	}
+	else
+	{
+		LOG_SUBSYSTEM_NOT_READY("unlink");
+	}
+}
+
+void UDependencySignalSubsystem::InvalidateSource(const UObject* SourceObject, const bool bForceRetrigger) const
+{
+	if (Dispatcher.IsValid())
+	{
+		Dispatcher->InvalidateSource(SourceObject, bForceRetrigger);
+	}
+	else
+	{
+		LOG_SUBSYSTEM_NOT_READY("invalidate");
+	}
+}
+
 UObject* UDependencySignalSubsystem::GetDependency(const FGameplayTag& Tag, UObject* SourceObject) const
 {
 	if (Resolver.IsValid())

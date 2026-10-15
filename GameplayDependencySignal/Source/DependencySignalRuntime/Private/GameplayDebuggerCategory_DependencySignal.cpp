@@ -360,6 +360,14 @@ void FGameplayDebuggerCategory_DependencySignal::GatherDispatcherState(
 				Tag.bIsValid = DepEntry->State.bIsValid != 0;
 				Tag.bIsValidParent = DepEntry->State.bIsValidParent != 0;
 			}
+
+			if (Source.bIsLocalSession)
+			{
+				if (const FObjectKey* LinkOwner = Dispatcher.LocalLinkOwners.Find(TagPair.Key))
+				{
+					Tag.LinkOwnerName = GetSourceName(LinkOwner->ResolveObjectPtr(), WorldContext);
+				}
+			}
 		}
 
 		Source.Tags.Sort([](const FRepData::FTagEntry& A, const FRepData::FTagEntry& B) {
@@ -447,8 +455,11 @@ void FGameplayDebuggerCategory_DependencySignal::DrawState(
 			const TCHAR* Color = bIsHierarchyValid ? TEXT("{green}") : Tag.bIsValid ? TEXT("{orange}") : TEXT("{red}");
 			const TCHAR* Note = (!bIsHierarchyValid && Tag.bIsValid) ? TEXT(" (parent invalid)") : TEXT("");
 
-			Lines.Add(
-				FString::Printf(TEXT("    %s%s{grey}%s  listeners: %d"), Color, *Tag.TagName, Note, Tag.ListenersNum));
+			const FString LinkOwner =
+				Tag.LinkOwnerName.IsEmpty() ? FString() : FString::Printf(TEXT("  <- %s"), *Tag.LinkOwnerName);
+
+			Lines.Add(FString::Printf(TEXT("    %s%s{grey}%s  listeners: %d%s"), Color, *Tag.TagName, Note,
+				Tag.ListenersNum, *LinkOwner));
 		}
 	}
 

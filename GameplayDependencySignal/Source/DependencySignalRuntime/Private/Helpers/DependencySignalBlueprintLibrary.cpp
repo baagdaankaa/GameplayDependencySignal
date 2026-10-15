@@ -98,3 +98,21 @@ void UDependencySignalBlueprintLibrary::ValidateActorDependencySignal(
 		Subsystem->Validate(Actor, Tag, bIsValid, bForceRetrigger);
 	}
 }
+
+void UDependencySignalBlueprintLibrary::UnlinkLocalDependencySignals(
+	const UObject* LinkOwner, const bool bForceRetrigger)
+{
+	if (const UDependencySignalSubsystem* Subsystem = UDependencySignalSubsystem::Get(LinkOwner))
+	{
+		Subsystem->UnlinkLocalSource(LinkOwner, bForceRetrigger);
+	}
+}
+
+void UDependencySignalBlueprintLibrary::InvalidateDependencySignals(
+	UObject* WorldContextObject, const UObject* SourceObject, const bool bForceRetrigger)
+{
+	if (const UDependencySignalSubsystem* Subsystem = UDependencySignalSubsystem::Get(WorldContextObject))
+	{
+		Subsystem->InvalidateSource(SourceObject, bForceRetrigger);
+	}
+}

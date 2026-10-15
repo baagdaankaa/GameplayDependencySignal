@@ -109,7 +109,7 @@ The built-in controller provider resolves `Controller`, `Controller.Pawn` and `C
 | | `FDependencySignalAgent` | `UDependencySignalSubsystem` |
 |---|---|---|
 | **How** | Inherit it in your class | Call `UDependencySignalSubsystem::Get(this)` |
-| **Gives you** | Fluent `MakeSignalRequest(...)`, `ValidateDependency(...)`, `GetDependencyObject(...)`, cached subsystem lookup | The explicit runtime API: `Register`, `Unregister`, `Validate`, `IsValidDependency`, `GetDependency` |
+| **Gives you** | Fluent `MakeSignalRequest(...)`, `ValidateDependency(...)`, `UnlinkLocalDependencies(...)`, `GetDependencyObject(...)`, cached subsystem lookup | The explicit runtime API: `Register`, `Unregister`, `Validate`, `UnlinkLocalSource`, `InvalidateSource`, `IsValidDependency`, `GetDependency` |
 | **Best for** | Most gameplay classes | Framework, utility and centralized service code |
 
 ### Examples
@@ -248,7 +248,34 @@ void AMyPlayerController::OnUnPossess()
 
 Pass `bForceRetrigger = true` to notify listeners even if the state did not change.
 
-#### 6. Type-safe traits
+#### 6. Unlinking local dependencies
+
+When an actor of the local player (its controller, pawn, or an actor/component owned by them) validates a tag, the tag is also validated for the **local session** (`nullptr`). The actor becomes the tag's **link owner**.
+
+When the actor stops being local (for example, the pawn is unpossessed), unlink it. Every local session tag it still owns becomes invalid right away:
+
+```cpp
+void AMyCharacter::NotifyControllerChanged()
+{
+    Super::NotifyControllerChanged();
+
+    // Runs on the server (PossessedBy / UnPossessed) and on clients (OnRep_Controller).
+    if (!IsLocallyControlled())
+    {
+        UnlinkLocalDependencies(this);
+    }
+}
+```
+
+- The last writer owns a link. When a new pawn validates a tag before the old pawn unlinks (respawn), the old pawn's unlink or invalidation leaves the new pawn's state alone.
+- Invalidating a tag for an actor that is no longer local (`ValidateDependency(this, Tag, false)`) still reaches the local session, as long as the actor owns the link.
+- Validating a tag directly for the local session (`SourceObject = nullptr`) takes it over: no link owner can invalidate it afterwards.
+- Unlinking does not change the actor's own scope. To invalidate every non-root tag of a source, use `InvalidateDependencies(this, Source)` / `Subsystem->InvalidateSource(Source)`.
+- When a link owner is garbage collected without unlinking, its local tags are invalidated after the next garbage collection.
+
+Blueprint: `Unlink Local Dependency Signals` and `Invalidate Dependency Signals`.
+
+#### 7. Type-safe traits
 
 Map a tag to a C++ type once to avoid magic tags and casts:
 
@@ -310,6 +337,7 @@ Open the GameplayDebugger with **`'`** (apostrophe). The category lists every re
 
 - **Green**: valid. **Red**: invalid. **Orange**: valid itself, but a parent tag is invalid.
 - Each tag shows its listener count; the header shows total listeners and any-source listeners.
+- Local session tags show their link owner (`<- BP_MyCharacter_0`).
 - Sources are ordered: the selected **debug actor** (and its components, marked `>`), then **`<Local Session>`** (the `nullptr` context, always listed), then alphabetically.
 
 **Server and client state.** The data is collected on the **authority** and replicated by the GameplayDebugger, so by default a client sees the **server's** dispatcher. Each world has its own dispatcher, so the server and client states can differ.
@@ -327,6 +355,7 @@ When the list is taller than the screen it continues in more columns; when the c
 
 - Use a **real `SourceObject`** for dependencies of a concrete actor or controller; use **`nullptr`** for local client code, especially UI.
 - Always validate **and** invalidate: listeners react to both transitions.
+- Unlink an actor's local dependencies when it stops being local (e.g. on unpossess), so local UI never holds on to a pawn the player no longer controls.
 - Always unregister listeners when the owner no longer needs updates.
 - Prefer traits in C++ for tags used in many places.
 - Keep tags hierarchical so initialization rules follow the tag tree.

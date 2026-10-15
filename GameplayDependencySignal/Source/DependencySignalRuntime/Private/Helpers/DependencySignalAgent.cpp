@@ -114,6 +114,31 @@ void FDependencySignalAgent::ValidateDependency(
 	}
 }
 
+void FDependencySignalAgent::UnlinkLocalDependencies(const UObject* LinkOwner, const bool bForceRetrigger) const
+{
+	if (const UDependencySignalSubsystem* Subsystem = GetSubsystem(LinkOwner))
+	{
+		Subsystem->UnlinkLocalSource(LinkOwner, bForceRetrigger);
+	}
+	else
+	{
+		LOG_SUBSYSTEM_NOT_FOUND("unlink");
+	}
+}
+
+void FDependencySignalAgent::InvalidateDependencies(
+	const UObject* ContextualObject, const UObject* SourceObject, const bool bForceRetrigger) const
+{
+	if (const UDependencySignalSubsystem* Subsystem = GetSubsystem(ContextualObject))
+	{
+		Subsystem->InvalidateSource(SourceObject, bForceRetrigger);
+	}
+	else
+	{
+		LOG_SUBSYSTEM_NOT_FOUND("invalidate");
+	}
+}
+
 UObject* FDependencySignalAgent::GetDependencyObject(
 	const UObject* ContextualObject, const FGameplayTag& Tag, UObject* SourceObject) const
 {

@@ -55,9 +55,13 @@ private:
 			bool bIsValid = false;
 			bool bIsValidParent = false;
 
+			/** Source that owns the tag's local link; only set for local session tags. */
+			FString LinkOwnerName;
+
 			friend FArchive& operator<<(FArchive& Ar, FTagEntry& Entry)
 			{
-				return Ar << Entry.TagName << Entry.ListenersNum << Entry.bIsValid << Entry.bIsValidParent;
+				return Ar << Entry.TagName << Entry.ListenersNum << Entry.bIsValid << Entry.bIsValidParent
+						  << Entry.LinkOwnerName;
 			}
 		};
 

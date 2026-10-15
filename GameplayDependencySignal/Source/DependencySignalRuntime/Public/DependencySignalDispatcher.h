@@ -100,6 +100,43 @@ public:
 		const bool bForceRetrigger = false);
 
 	/**
+	 * Updates the validity state of a local session dependency on behalf of a link owner.
+	 *
+	 * A valid state makes LinkOwner the owner of the tag's local link (the last writer wins).
+	 * An invalid state is applied only while LinkOwner still owns the link, so a source that was replaced
+	 * (e.g. an old pawn after respawn) cannot invalidate the local state published by its successor.
+	 * A null LinkOwner applies the state unconditionally and leaves the tag without an owner.
+	 *
+	 * @param Tag					The gameplay tag identifying the dependency.
+	 * @param bIsValid				Whether the dependency is now valid or invalid.
+	 * @param LinkOwner				The source object that publishes the tag for the local session.
+	 * @param bForceRetrigger		If true, notifies listeners even if the state didn't change.
+	 */
+	void ValidateLocalLink(const FGameplayTag& Tag, const bool bIsValid, const UObject* LinkOwner,
+		const bool bForceRetrigger = false);
+
+	/**
+	 * Invalidates every local session dependency whose local link is owned by LinkOwner.
+	 *
+	 * Use it when the owner stops being local, e.g. when a pawn is unpossessed from the local player controller.
+	 *
+	 * @param LinkOwner				The source object whose local links are dropped.
+	 * @param bForceRetrigger		If true, notifies listeners even if the state didn't change.
+	 */
+	void UnlinkLocalSource(const UObject* LinkOwner, const bool bForceRetrigger = false);
+
+	/**
+	 * Invalidates every explicitly valid, non root dependency of a source object.
+	 *
+	 * @param SourceObject			The source object whose dependencies are invalidated (nullptr: local session).
+	 * @param bForceRetrigger		If true, notifies listeners even if the state didn't change.
+	 */
+	void InvalidateSource(const UObject* SourceObject, const bool bForceRetrigger = false);
+
+	/** Returns the current owner of a local session tag's link, or nullptr if the tag has no (live) owner. */
+	UObject* GetLocalLinkOwner(const FGameplayTag& Tag) const;
+
+	/**
 	 * Resets all dependency states and listener registrations.
 	 *
 	 * Clears all cached validity states and listener handles.
@@ -237,6 +274,12 @@ private:
 		bool Contains(const FGameplayTag& Tag) const
 		{
 			return TagToEntry.Contains(Tag);
+		}
+
+		/** Returns all entries of this container. */
+		const TMap<FGameplayTag, TUniquePtr<FDepEntry>>& GetEntries() const
+		{
+			return TagToEntry;
 		}
 
 	private:
@@ -386,6 +429,15 @@ private:
 	/** Determines the appropriate source object for broadcasting validity changes. */
 	UObject* GetSourceObjForBroadcast(const UObject* SourceObject) const;
 
+	/** Whether the source object resolves to the local session container. */
+	bool IsLocalSession(const UObject* SourceObject) const;
+
+	/** Invalidates the local session tags still owned by OwnerKey; works for owners that were already collected. */
+	void UnlinkLocalTags(const FObjectKey& OwnerKey, const bool bForceRetrigger);
+
+	/** Invalidates the given tags of a source, parents first, so each listener sees a single transition. */
+	void InvalidateTags(TArray<FGameplayTag>&& Tags, const UObject* SourceObject, const bool bForceRetrigger);
+
 	// ---------------------------------------------------------------------------
 	// Storage
 	// ---------------------------------------------------------------------------
@@ -401,6 +453,9 @@ private:
 
 	/** Map from listener handles to their any source listener entries. */
 	TMap<FListenerHandle, TUniquePtr<FAnyDepListenerEntry>> AnyListenerByHandle;
+
+	/** Map from local session tags to the source object that owns their local link (see ValidateLocalLink). */
+	TMap<FGameplayTag, FObjectKey> LocalLinkOwners;
 
 	/**
 	 * The root tags that define the base of the dependency hierarchy.

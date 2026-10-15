@@ -76,4 +76,14 @@ public:
 	static void ValidateActorDependencySignal(const AActor* Actor,
 		UPARAM(meta = (Categories = "DependencySignal")) const FGameplayTag& Tag, const bool bIsValid,
 		const bool bForceRetrigger);
+
+	/** Invalidates every local session dependency the actor published while it was local (e.g. on unpossess). */
+	UFUNCTION(BlueprintCallable, Category = "Dependency Signal | Validation", meta = (DefaultToSelf = "LinkOwner"))
+	static void UnlinkLocalDependencySignals(const UObject* LinkOwner, const bool bForceRetrigger);
+
+	/** Invalidates every explicitly valid, non root dependency of the source object (None: local session). */
+	UFUNCTION(BlueprintCallable, Category = "Dependency Signal | Validation",
+		meta = (WorldContext = "WorldContextObject"))
+	static void InvalidateDependencySignals(
+		UObject* WorldContextObject, const UObject* SourceObject, const bool bForceRetrigger);
 };

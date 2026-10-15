@@ -4,6 +4,7 @@
 
 #include "DependencySignalRuntime.h"
 #include "Algo/AllOf.h"
+#include "Algo/Sort.h"
 
 namespace DependencySignal::Private
 {
@@ -17,6 +18,18 @@ namespace DependencySignal::Private
 	bool IsListenerDead(const bool bHasOwner, const FWeakObjectPtr& Owner, const FDependencyStateEvent& Event)
 	{
 		return bHasOwner ? Owner.IsStale(/* bIncludingGarbage */ false) : !Event.IsBound();
+	}
+
+	/**
+	 * Orders tags so parents come before their children. When the tags are invalidated in this order, an invalid
+	 * parent already reports its children as invalid, and the deeper tags are then switched off silently
+	 * instead of producing more transitions.
+	 */
+	void SortParentsFirst(TArray<FGameplayTag>& Tags)
+	{
+		Algo::SortBy(Tags, [](const FGameplayTag& Tag) {
+			return Tag.GetGameplayTagParents().Num();
+		});
 	}
 } // namespace DependencySignal::Private
 
@@ -127,6 +140,12 @@ void FDependencySignalDispatcher::Validate(
 	FDepEntry* Entry = GetDependencyEntry(SourceObject, Tag, /* bCreateIfDoesntExist */ true);
 	check(Entry != nullptr);
 
+	// A direct writing to the local session takes the tag over: no link owner may invalidate it afterward.
+	if (IsLocalSession(SourceObject))
+	{
+		LocalLinkOwners.Remove(Tag);
+	}
+
 	ValidateAnyDependency(Tag, SourceObject, bForceRetrigger);
 
 	if (bForceRetrigger || Entry->State.bIsValid != bIsValid)
@@ -142,12 +161,71 @@ void FDependencySignalDispatcher::Validate(
 	}
 }
 
+void FDependencySignalDispatcher::ValidateLocalLink(
+	const FGameplayTag& Tag, const bool bIsValid, const UObject* LinkOwner, const bool bForceRetrigger)
+{
+	const bool bHasLinkOwner = IsValid(LinkOwner);
+
+	if (!bIsValid && bHasLinkOwner)
+	{
+		// Only the current owner may invalidate the link; anyone else was replaced or never published the tag.
+		const FObjectKey* CurrentOwner = LocalLinkOwners.Find(Tag);
+		if (!CurrentOwner || *CurrentOwner != FObjectKey(LinkOwner))
+		{
+			return;
+		}
+	}
+
+	// Validate() drops the previous owner of a local session tag.
+	Validate(Tag, bIsValid, /* SourceObject */ nullptr, bForceRetrigger);
+
+	if (bIsValid && bHasLinkOwner)
+	{
+		LocalLinkOwners.Add(Tag, FObjectKey(LinkOwner));
+	}
+}
+
+void FDependencySignalDispatcher::UnlinkLocalSource(const UObject* LinkOwner, const bool bForceRetrigger)
+{
+	if (IsValid(LinkOwner))
+	{
+		UnlinkLocalTags(FObjectKey(LinkOwner), bForceRetrigger);
+	}
+}
+
+void FDependencySignalDispatcher::InvalidateSource(const UObject* SourceObject, const bool bForceRetrigger)
+{
+	const FDepContainer* Container = FindDependencyContainer(SourceObject);
+	if (!Container)
+	{
+		return;
+	}
+
+	TArray<FGameplayTag> Tags;
+	for (const TPair<FGameplayTag, TUniquePtr<FDepEntry>>& Pair : Container->GetEntries())
+	{
+		if (Pair.Value.IsValid() && Pair.Value->State.bIsValid && !RootTags.HasTagExact(Pair.Key))
+		{
+			Tags.Add(Pair.Key);
+		}
+	}
+
+	InvalidateTags(MoveTemp(Tags), SourceObject, bForceRetrigger);
+}
+
+UObject* FDependencySignalDispatcher::GetLocalLinkOwner(const FGameplayTag& Tag) const
+{
+	const FObjectKey* Owner = LocalLinkOwners.Find(Tag);
+	return Owner ? Owner->ResolveObjectPtr() : nullptr;
+}
+
 void FDependencySignalDispatcher::Reset()
 {
 	SourceToDependency.Empty();
 	HandleToListener.Empty();
 	AnyDependencyByTag.Empty();
 	AnyListenerByHandle.Empty();
+	LocalLinkOwners.Empty();
 }
 
 bool FDependencySignalDispatcher::IsValidDependencyTags(const FGameplayTagContainer& Tags) const
@@ -317,6 +395,21 @@ const FDependencySignalDispatcher::FDepContainer* FDependencySignalDispatcher::F
 
 void FDependencySignalDispatcher::PruneStaleSources()
 {
+	// A collected link owner can no longer unlink itself: drop its local links so they do not stay valid forever.
+	TSet<FObjectKey> StaleLinkOwners;
+	for (const TPair<FGameplayTag, FObjectKey>& Pair : LocalLinkOwners)
+	{
+		if (!Pair.Value.ResolveObjectPtr())
+		{
+			StaleLinkOwners.Add(Pair.Value);
+		}
+	}
+
+	for (const FObjectKey& StaleOwner : StaleLinkOwners)
+	{
+		UnlinkLocalTags(StaleOwner, /* bForceRetrigger */ false);
+	}
+
 	for (auto It = SourceToDependency.CreateIterator(); It; ++It)
 	{
 		if (!It.Key().ResolveObjectPtr())
@@ -626,4 +719,46 @@ void FDependencySignalDispatcher::ValidateAnyDependency(
 UObject* FDependencySignalDispatcher::GetSourceObjForBroadcast(const UObject* SourceObject) const
 {
 	return SourceObject != WorldContext.Get() ? const_cast<UObject*>(SourceObject) : nullptr;
+}
+
+bool FDependencySignalDispatcher::IsLocalSession(const UObject* SourceObject) const
+{
+	return !IsValid(SourceObject) || SourceObject == WorldContext.Get();
+}
+
+void FDependencySignalDispatcher::UnlinkLocalTags(const FObjectKey& OwnerKey, const bool bForceRetrigger)
+{
+	TArray<FGameplayTag> Tags;
+	for (const TPair<FGameplayTag, FObjectKey>& Pair : LocalLinkOwners)
+	{
+		if (Pair.Value == OwnerKey)
+		{
+			Tags.Add(Pair.Key);
+		}
+	}
+
+	DependencySignal::Private::SortParentsFirst(Tags);
+
+	for (const FGameplayTag& Tag : Tags)
+	{
+		// A listener notified by an earlier tag may have linked this one to another owner: leave it alone then.
+		// Validate() removes the tag from LocalLinkOwners.
+		if (const FObjectKey* CurrentOwner = LocalLinkOwners.Find(Tag); CurrentOwner && *CurrentOwner == OwnerKey)
+		{
+			Validate(Tag, /* bIsValid */ false, /* SourceObject */ nullptr, bForceRetrigger);
+		}
+	}
+}
+
+void FDependencySignalDispatcher::InvalidateTags(
+	TArray<FGameplayTag>&& Tags, const UObject* SourceObject, const bool bForceRetrigger)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDependencySignalDispatcher::InvalidateTags);
+
+	DependencySignal::Private::SortParentsFirst(Tags);
+
+	for (const FGameplayTag& Tag : Tags)
+	{
+		Validate(Tag, /* bIsValid */ false, SourceObject, bForceRetrigger);
+	}
 }

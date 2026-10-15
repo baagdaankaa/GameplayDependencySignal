@@ -124,6 +124,25 @@ public:
 		const AActor* Actor, const FGameplayTag& Tag, const bool bIsValid, const bool bForceRetrigger = false) const;
 
 	/**
+	 * Invalidates every local session dependency that an actor published while it was local.
+	 *
+	 * Call it when the actor stops being local, e.g. from a pawn's UnPossessed() or NotifyControllerChanged().
+	 * Tags that another source has published since then are left untouched.
+	 *
+	 * @param LinkOwner				The actor (or one of its components) that published the local dependencies.
+	 * @param bForceRetrigger		If true, notifies listeners even if the state didn't change.
+	 */
+	UE_API void UnlinkLocalSource(const UObject* LinkOwner, const bool bForceRetrigger = false) const;
+
+	/**
+	 * Invalidates every explicitly valid, non root dependency of a source object.
+	 *
+	 * @param SourceObject			The source object whose dependencies are invalidated (nullptr: local session).
+	 * @param bForceRetrigger		If true, notifies listeners even if the state didn't change.
+	 */
+	UE_API void InvalidateSource(const UObject* SourceObject, const bool bForceRetrigger = false) const;
+
+	/**
 	 * Retrieves a dependency object using a gameplay tag.
 	 *
 	 * @param Tag					The gameplay tag identifying the dependency.

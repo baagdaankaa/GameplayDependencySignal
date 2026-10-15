@@ -16,6 +16,10 @@ public:
 	static void ValidateFor(const AActor* Actor, FDependencySignalDispatcher& Dispatcher, const FGameplayTag& Tag,
 		const bool bIsValid, const bool bForceRetrigger = false);
 
+	/** Drops the local links of an actor; a component resolves to its owning actor. */
+	static void UnlinkLocalFor(
+		const UObject* LinkOwner, FDependencySignalDispatcher& Dispatcher, const bool bForceRetrigger = false);
+
 protected:
 	static bool IsLocalPlayerController(const AActor* Actor);
 };

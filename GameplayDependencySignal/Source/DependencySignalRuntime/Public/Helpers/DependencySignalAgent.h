@@ -117,6 +117,24 @@ protected:
 		const bool bForceRetrigger = false) const;
 
 	/**
+	 * Invalidates every local session dependency that an actor published while it was local.
+	 *
+	 * @param LinkOwner			The actor (or one of its components) that published the local dependencies.
+	 * @param bForceRetrigger	If true, triggers listeners even if validity state didn't change.
+	 */
+	void UnlinkLocalDependencies(const UObject* LinkOwner, const bool bForceRetrigger = false) const;
+
+	/**
+	 * Invalidates every explicitly valid, non root dependency of a source object.
+	 *
+	 * @param ContextualObject	Object whose world context is used to find the subsystem.
+	 * @param SourceObject		The source object whose dependencies are invalidated (nullptr: local session).
+	 * @param bForceRetrigger	If true, triggers listeners even if validity state didn't change.
+	 */
+	void InvalidateDependencies(const UObject* ContextualObject, const UObject* SourceObject,
+		const bool bForceRetrigger = false) const;
+
+	/**
 	 * Retrieves a dependency object using a gameplay tag.
 	 *
 	 * @param ContextualObject	Object whose world context is used to find the subsystem.
