@@ -131,7 +131,19 @@ UObject* UDependencySignalSubsystem::GetDependency(const FGameplayTag& Tag, UObj
 
 bool UDependencySignalSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
-	return GetDefault<UDependencySignalSettings>()->ShouldCreateSubsystem() && Super::ShouldCreateSubsystem(Outer);
+	const UDependencySignalSettings* Settings = GetDefault<UDependencySignalSettings>();
+	if (!Settings->ShouldCreateSubsystem() || !Super::ShouldCreateSubsystem(Outer))
+	{
+		return false;
+	}
+
+	if (const UWorld* World = Cast<UWorld>(Outer); Settings->IsMapProhibited(World))
+	{
+		DS_UE_LOG(Log, TEXT("DependencySignalSubsystem skipped: map '%s' is prohibited"), *World->GetMapName());
+		return false;
+	}
+
+	return true;
 }
 
 bool UDependencySignalSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const

@@ -324,6 +324,7 @@ Register it in **Project Settings > Game > Dependency Signal Settings > Provider
 **Project Settings > Game > Dependency Signal Settings**
 
 - **Should Subsystem Be Created**: enables the subsystem for game worlds.
+- **Prohibited Maps**: maps where the subsystem is never created, such as front-end menus or transition maps. On these maps `HasInstance` returns false and subsystem calls log "subsystem not initialized".
 - **Root Tags**: roots of the dependency hierarchy (`DependencySignal` by default). Root tags are always valid; all dependency tags should live under them.
 - **Provider Classes**: the `UDependencySignalProviderBase` classes used for resolution.
 

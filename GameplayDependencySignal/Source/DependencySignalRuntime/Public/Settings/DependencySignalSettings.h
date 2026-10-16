@@ -8,6 +8,7 @@
 #include "DependencySignalSettings.generated.h"
 
 class UDependencySignalProviderBase;
+class UWorld;
 
 #define UE_API DEPENDENCYSIGNALRUNTIME_API
 
@@ -29,6 +30,12 @@ public:
 		return bShouldSubsystemBeCreated;
 	}
 
+	/**
+	 * Returns true if the given world's map is in the prohibited maps list.
+	 * PIE-prefixed package names are matched against their original map.
+	 */
+	bool IsMapProhibited(const UWorld* World) const;
+
 	FORCEINLINE const TArray<TSubclassOf<UDependencySignalProviderBase>>& GetProviderClasses() const
 	{
 		return ProviderClasses;
@@ -43,6 +50,16 @@ private:
 	 */
 	UPROPERTY(Config, EditAnywhere)
 	bool bShouldSubsystemBeCreated = true;
+
+	/**
+	 * Maps on which the dependency signal subsystem is never created.
+	 *
+	 * Useful for front-end menus, loading or transition maps that do not need dependency signals.
+	 * Only checked when bShouldSubsystemBeCreated is true.
+	 */
+	UPROPERTY(Config, EditAnywhere,
+		meta = (AllowedClasses = "/Script/Engine.World", EditCondition = "bShouldSubsystemBeCreated"))
+	TArray<TSoftObjectPtr<UWorld>> ProhibitedMaps;
 
 	/**
 	 * Root gameplay tags that form the base of the dependency hierarchy.
