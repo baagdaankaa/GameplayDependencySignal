@@ -2,6 +2,8 @@
 
 #include "Providers/DependencySignalProviderResolver.h"
 
+#include "DependencySignalRuntime.h"
+#include "GameplayTagContainer.h"
 #include "Providers/DependencySignalProviderBase.h"
 
 FDependencySignalProviderResolver::FDependencySignalProviderResolver(
@@ -41,7 +43,12 @@ UObject* FDependencySignalProviderResolver::GetDependency(const FGameplayTag& Ta
 {
 	// Use UWorld if SourceObject is invalid. To try getting a valid dependency.
 	SourceObject = IsValid(SourceObject) ? SourceObject : World.Get();
-	check(IsValid(SourceObject));
+	if (!IsValid(SourceObject))
+	{
+		// The world can already be gone during teardown.
+		DS_UE_LOG(Warning, TEXT("Unable to resolve [%s]: no valid source object or world"), *Tag.ToString());
+		return nullptr;
+	}
 
 	for (const TWeakObjectPtr<UDependencySignalProviderBase>& Provider : Providers)
 	{

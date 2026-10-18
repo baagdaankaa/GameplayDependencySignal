@@ -65,6 +65,11 @@ FDependencySignalListenerHandle FDependencySignalAgent::FDependencySignalRequest
 	return FDependencySignalListenerHandle();
 }
 
+FScopedDependencySignalListener FDependencySignalAgent::FDependencySignalRequestBuilder::RegisterScoped()
+{
+	return FScopedDependencySignalListener(Register());
+}
+
 // ---------------------------------------------------------------------------
 // FDependencySignalAgent
 // ---------------------------------------------------------------------------

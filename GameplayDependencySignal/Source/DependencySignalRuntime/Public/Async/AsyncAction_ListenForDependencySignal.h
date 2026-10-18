@@ -69,6 +69,9 @@ private:
 	/** Whether to automatically destroy this action after receiving a valid dependency signal. */
 	bool bDestroyAfterSuccessfulValidation = false;
 
+	/** Set by SetReadyToDestroy; it can run from the first callback, before Register() has returned the handle. */
+	bool bFinished = false;
+
 	/** Handle to the registered listener in the dependency signal dispatcher. */
 	FDependencySignalListenerHandle ListenerHandle;
 };

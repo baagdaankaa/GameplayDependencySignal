@@ -35,9 +35,14 @@ FDependencySignalRequest& FDependencySignalRequest::MarkAsAnySource()
 
 bool FDependencySignalListenerHandle::Unregister()
 {
-	if (Dispatcher.IsValid())
+	if (!IsValid())
 	{
-		Dispatcher.Pin()->Unregister(*this);
+		return false;
+	}
+
+	if (const TSharedPtr<FDependencySignalDispatcher> PinnedDispatcher = Dispatcher.Pin())
+	{
+		PinnedDispatcher->Unregister(*this);
 	}
 
 	Reset();
@@ -48,4 +53,54 @@ void FDependencySignalListenerHandle::Reset()
 {
 	Dispatcher.Reset();
 	Id = 0;
+}
+
+FScopedDependencySignalListener::FScopedDependencySignalListener(FDependencySignalListenerHandle&& InHandle)
+	: Handle(MoveTemp(InHandle))
+{
+	InHandle = FDependencySignalListenerHandle();
+}
+
+FScopedDependencySignalListener::FScopedDependencySignalListener(FScopedDependencySignalListener&& Other)
+	: Handle(Other.Release())
+{
+}
+
+FScopedDependencySignalListener::~FScopedDependencySignalListener()
+{
+	Handle.Unregister();
+}
+
+FScopedDependencySignalListener& FScopedDependencySignalListener::operator=(FScopedDependencySignalListener&& Other)
+{
+	if (this != &Other)
+	{
+		*this = Other.Release();
+	}
+
+	return *this;
+}
+
+FScopedDependencySignalListener& FScopedDependencySignalListener::operator=(FDependencySignalListenerHandle&& InHandle)
+{
+	if (Handle != InHandle)
+	{
+		Handle.Unregister();
+	}
+
+	Handle = MoveTemp(InHandle);
+	InHandle = FDependencySignalListenerHandle();
+	return *this;
+}
+
+void FScopedDependencySignalListener::Reset()
+{
+	Handle.Unregister();
+}
+
+FDependencySignalListenerHandle FScopedDependencySignalListener::Release()
+{
+	FDependencySignalListenerHandle Released = MoveTemp(Handle);
+	Handle = FDependencySignalListenerHandle();
+	return Released;
 }

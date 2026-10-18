@@ -36,6 +36,13 @@ void UAsyncAction_ListenForDependencySignal::Activate()
 							 .Bind(this, &ThisClass::HandleDependencyValidation)
 							 .Register();
 
+		if (bFinished)
+		{
+			// The registration callback already finished the action while the handle was still unassigned.
+			ListenerHandle.Unregister();
+			return;
+		}
+
 		if (ListenerHandle.IsValid())
 		{
 			return;
@@ -47,6 +54,7 @@ void UAsyncAction_ListenForDependencySignal::Activate()
 
 void UAsyncAction_ListenForDependencySignal::SetReadyToDestroy()
 {
+	bFinished = true;
 	ListenerHandle.Unregister();
 
 	Super::SetReadyToDestroy();

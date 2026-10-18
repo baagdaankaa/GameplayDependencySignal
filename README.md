@@ -228,6 +228,19 @@ void UMyManager::HandleDependencyChanged(bool bIsValid, UObject* SourceObject)
 
 Unregister with `Subsystem->Unregister(ListenerHandle)` or `ListenerHandle.Unregister()`.
 
+To unregister automatically, store the listener in an `FScopedDependencySignalListener`. It unregisters when it is destroyed or assigned a new handle, and it is safe to destroy after the subsystem is gone:
+
+```cpp
+FScopedDependencySignalListener PawnListener; // member
+
+PawnListener = MakeSignalRequest(this)
+    .AddTag(DependencySignalTags::Controller_Pawn)
+    .Bind(this, &UMyWidgetController::HandlePawnStateChanged)
+    .Register(); // or .RegisterScoped()
+```
+
+Callbacks may register or unregister listeners, including themselves, while they run.
+
 #### 5. Validating a dependency
 
 Validate when an object becomes ready, and invalidate when it goes away:
@@ -357,7 +370,9 @@ When the list is taller than the screen it continues in more columns; when the c
 - Use a **real `SourceObject`** for dependencies of a concrete actor or controller; use **`nullptr`** for local client code, especially UI.
 - Always validate **and** invalidate: listeners react to both transitions.
 - Unlink an actor's local dependencies when it stops being local (e.g. on unpossess), so local UI never holds on to a pawn the player no longer controls.
-- Always unregister listeners when the owner no longer needs updates.
+- Always unregister listeners when the owner no longer needs updates, or hold them in an `FScopedDependencySignalListener`.
+- A request without tags is rejected with a warning and returns an invalid handle.
+- Use the dispatcher, subsystem and handles from the game thread only.
 - Prefer traits in C++ for tags used in many places.
 - Keep tags hierarchical so initialization rules follow the tag tree.
 - When a client and the server disagree, use `Shift+V` in the GameplayDebugger to compare both states.

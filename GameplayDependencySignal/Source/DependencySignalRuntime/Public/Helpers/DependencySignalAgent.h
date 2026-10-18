@@ -66,6 +66,13 @@ protected:
 		 */
 		FDependencySignalListenerHandle Register();
 
+		/**
+		 * Registers the built request and returns an owner that unregisters the listener when destroyed.
+		 *
+		 * @return				A scoped listener; keep it alive as long as the callback is needed.
+		 */
+		[[nodiscard]] FScopedDependencySignalListener RegisterScoped();
+
 	private:
 		/** The request being constructed with this builder. */
 		FDependencySignalRequest PendingRequest;

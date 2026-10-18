@@ -369,6 +369,77 @@ void FDependencySignalAnySourceSpec::Define()
 		});
 	});
 
+	Describe("Reentrant callbacks", [this]() {
+		It("Should survive an any-source listener that unregisters itself while a new source registers", [this] {
+			const FGameplayTag& TagA = FNativeGameplayTags::Get().Test_A;
+			const TSharedRef<int32> CallsNum = MakeShared<int32>(0);
+			const TSharedRef<FDependencySignalListenerHandle> SelfHandle =
+				MakeShared<FDependencySignalListenerHandle>();
+
+			*SelfHandle = Dispatcher->Register(FDependencySignalRequest()
+					.AddTag(TagA)
+					.MarkAsAnySource()
+					.BindLambda([SelfHandle, CallsNum](const bool, UObject*) {
+						// The first call comes from the per-source registration inside Validate().
+						SelfHandle->Unregister();
+						++(*CallsNum);
+					})
+					.End());
+			TestTrue(TEXT("Successfully registered"), SelfHandle->IsValid());
+
+			Dispatcher->Validate(TagA, true, SourceObjects[0].Get());
+
+			TestEqual(TEXT("Called once before unregistering itself"), *CallsNum, 1);
+			TestEqual(TEXT("No any listener after self unregistration"), Dispatcher->GetAnyListenersNum(), 0);
+			TestEqual(TEXT("No per-source listeners after self unregistration"), Dispatcher->GetListenersNum(), 0);
+
+			Dispatcher->Validate(TagA, true, SourceObjects[1].Get());
+			Dispatcher->Validate(TagA, false, SourceObjects[0].Get());
+			TestEqual(TEXT("No calls after self unregistration"), *CallsNum, 1);
+		});
+
+		It("Should survive an any-source listener that registers another one on the same tag", [this] {
+			const FGameplayTag& TagA = FNativeGameplayTags::Get().Test_A;
+			UObject* Source = SourceObjects[0].Get();
+
+			TArray<bool> InnerCalls;
+			FDependencySignalListenerHandle InnerHandle;
+
+			FDependencySignalListenerHandle OuterHandle = Dispatcher->Register(FDependencySignalRequest()
+					.AddTag(TagA)
+					.MarkAsAnySource()
+					.BindLambda([this, &InnerCalls, &InnerHandle, TagA](const bool, UObject*) {
+						if (InnerHandle.IsValid())
+						{
+							return;
+						}
+
+						InnerHandle = Dispatcher->Register(FDependencySignalRequest()
+								.AddTag(TagA)
+								.MarkAsAnySource()
+								.BindLambda([&InnerCalls](const bool bIsValid, UObject*) {
+									InnerCalls.Add(bIsValid);
+								})
+								.End());
+					})
+					.End());
+
+			Dispatcher->Validate(TagA, true, Source);
+
+			TestTrue(TEXT("Inner listener registered from a callback"), InnerHandle.IsValid());
+			TestEqual(TEXT("Two any-source registrations"), Dispatcher->GetAnyListenersNum(), 2);
+			TestTrue(TEXT("Inner listener ends up valid for the source"), !InnerCalls.IsEmpty() && InnerCalls.Last());
+
+			// Each registration owns exactly one per-source listener for the source.
+			TestEqual(TEXT("One per-source listener per registration"), Dispatcher->GetListenersNum(), 2);
+
+			InnerHandle.Unregister();
+			OuterHandle.Unregister();
+			TestEqual(TEXT("No any listener after unregistration"), Dispatcher->GetAnyListenersNum(), 0);
+			TestEqual(TEXT("No per-source listeners after unregistration"), Dispatcher->GetListenersNum(), 0);
+		});
+	});
+
 	Describe("Reset should clear every registration", [this]() {
 		It("Should empty both listener maps after Reset", [this] {
 			FDependencySignalListenerHandle AnyHandle = Dispatcher->Register(FDependencySignalRequest()

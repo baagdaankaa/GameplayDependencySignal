@@ -252,4 +252,55 @@ private:
 	}
 };
 
+/**
+ * Move-only owner of a listener registration that unregisters it when destroyed (C++ only).
+ *
+ * Assigning a new handle unregisters the previous listener. Safe to destroy after the dispatcher is gone.
+ *
+ * Example:
+ *   FScopedDependencySignalListener PawnListener;
+ *   PawnListener = MakeSignalRequest(this).AddTag(Tag).Bind(this, &ThisClass::HandlePawn).Register();
+ */
+class UE_API FScopedDependencySignalListener
+{
+public:
+	FScopedDependencySignalListener() = default;
+	FScopedDependencySignalListener(const FScopedDependencySignalListener&) = delete;
+	FScopedDependencySignalListener& operator=(const FScopedDependencySignalListener&) = delete;
+
+	/** Takes ownership of a registered listener. */
+	FScopedDependencySignalListener(FDependencySignalListenerHandle&& InHandle);
+
+	FScopedDependencySignalListener(FScopedDependencySignalListener&& Other);
+
+	/** Unregisters the owned listener, if any. */
+	~FScopedDependencySignalListener();
+
+	FScopedDependencySignalListener& operator=(FScopedDependencySignalListener&& Other);
+
+	/** Unregisters the currently owned listener and takes ownership of a new one. */
+	FScopedDependencySignalListener& operator=(FDependencySignalListenerHandle&& InHandle);
+
+	/** Returns the owned handle. */
+	const FDependencySignalListenerHandle& Get() const
+	{
+		return Handle;
+	}
+
+	/** Checks whether a listener is owned. */
+	bool IsValid() const
+	{
+		return Handle.IsValid();
+	}
+
+	/** Unregisters the owned listener. */
+	void Reset();
+
+	/** Gives up ownership without unregistering and returns the handle. */
+	[[nodiscard]] FDependencySignalListenerHandle Release();
+
+private:
+	FDependencySignalListenerHandle Handle;
+};
+
 #undef UE_API
