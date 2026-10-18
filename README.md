@@ -82,7 +82,7 @@ The built-in controller provider resolves `Controller`, `Controller.Pawn` and `C
 
 **Wait for dependencies:** the async node broadcasts whenever the combined validity of its tags changes. While **Any Source** is checked, the node hides **Source Object**, because every source is reported.
 
-<img width="465" height="256" alt="Listen For Dependency Signal Validity Node" src="https://github.com/user-attachments/assets/e9068235-0de8-44c3-ad2a-531d08ba7e04" />
+<img width="1017" height="347" alt="Listen For Dependency Signal Validity Node" src="https://github.com/user-attachments/assets/0ac15918-0ed6-415e-aac3-93a60c57a2a9" />
 
 **Validate / invalidate:**
 
@@ -93,6 +93,8 @@ The built-in controller provider resolves `Controller`, `Controller.Pawn` and `C
 <img width="767" height="212" alt="Is Valid Dependency Nodes" src="https://github.com/user-attachments/assets/84f6b483-52be-4975-a6fa-c75232983033" />
 
 **Wait for the object:** `Wait For Dependency Signal Object` waits until a tag is valid and outputs the object a provider resolves for it, so you don't need to call Get…Object yourself:
+
+<img width="812" height="381" alt="Wait For Dependency Signal Object Node" src="https://github.com/user-attachments/assets/3a38a845-7d31-43ed-866d-7463d097f35a" />
 
 - **On Ready (Object)** fires once the tag is valid and a provider returned an object of **Object Class** (None accepts any object). The `Object` pin takes the type of the selected class, so no cast is needed. If **Object Class** is connected to another pin, `Object` takes that pin's class type.
 - By default the node ends after **On Ready**. With **Keep Listening**, it keeps running: **On Lost (Object)** fires with the last object when the tag becomes invalid, and **On Ready** fires again when it is valid again.
