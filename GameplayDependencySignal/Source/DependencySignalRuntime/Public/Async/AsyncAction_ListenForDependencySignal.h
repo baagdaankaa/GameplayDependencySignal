@@ -13,8 +13,11 @@
 
 /**
  * Async action for listening to dependency signal validity changes.
+ *
+ * In Blueprints, it is placed by UK2Node_ListenForDependencySignal (DependencySignalEditor module), which hides the
+ * Source Object pin while Any Source is checked. HasDedicatedAsyncNode keeps the generic async node from listing it.
  */
-UCLASS(MinimalAPI, BlueprintType)
+UCLASS(MinimalAPI, BlueprintType, meta = (HasDedicatedAsyncNode))
 class UAsyncAction_ListenForDependencySignal : public UCancellableAsyncAction, public FDependencySignalAgent
 {
 	GENERATED_BODY()
