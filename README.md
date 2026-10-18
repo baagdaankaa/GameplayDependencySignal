@@ -80,17 +80,32 @@ The built-in controller provider resolves `Controller`, `Controller.Pawn` and `C
 
 ## Blueprints
 
-**Wait for dependencies:** the async node broadcasts whenever the combined validity of its tags changes. While **Any Source** is checked, the node hides **Source Object**, because every source is reported.
+**Wait for dependencies:** `Listen For Dependency Signal Validity` listens to a set of tags and reports whenever their combined validity changes:
 
 <img width="1017" height="347" alt="Listen For Dependency Signal Validity Node" src="https://github.com/user-attachments/assets/0ac15918-0ed6-415e-aac3-93a60c57a2a9" />
 
-**Validate / invalidate:**
+- **On State Changed (Is Valid, Source Object)** fires right away with the current state, then on every valid and invalid transition. **Is Valid** is true only when every tag in **Tags** (and its whole parent chain) is valid.
+- **Source Object** None means the local session. With a real object, the state is tracked for that object only.
+- **Any Source** listens on every source instead of one and fires separately for each, with **Source Object** telling which one changed. While it is checked, the node hides **Source Object**.
+- **Destroy After Successful Validation** ends the node after the first valid state. Without it, the node keeps listening as long as its world exists.
 
-<img width="959" height="286" alt="Validation Dependency Nodes" src="https://github.com/user-attachments/assets/176adacf-ca50-45f5-8b49-bc6cd639786b" />
+**Validate / invalidate:** these nodes mark a dependency as ready or not ready, which notifies every listener of that tag:
 
-**Check validity immediately** (no subscription):
+<img width="992" height="452" alt="Validate And Invalidate Dependency Nodes" src="https://github.com/user-attachments/assets/acf50a4a-fe89-4577-8dbd-7a9a677a6cc8" />
+
+- `Validate Dependency Signal` sets **Tag** to **Is Valid** for an explicit **Source Object** (None: local session).
+- `Validate Actor Dependency Signal` and `Validate Component Dependency Signal` use the actor (or the component's owning actor) as the source. When that actor belongs to the local player (its controller, pawn, or an actor they own) or is the GameState, the tag is also validated for the local session. The actor becomes the tag's link owner.
+- `Unlink Local Dependency Signals` invalidates every local session tag the actor still owns. Call it when the actor stops being local, e.g. on unpossess.
+- `Invalidate Dependency Signals` invalidates every non-root tag of **Source Object** (None: local session).
+- **Force Retrigger** notifies listeners even when the state did not change.
+
+**Check validity immediately:** `Is Valid Dependency Signal` and `Is Valid Local Dependency Signal` read the current state without subscribing:
 
 <img width="767" height="212" alt="Is Valid Dependency Nodes" src="https://github.com/user-attachments/assets/84f6b483-52be-4975-a6fa-c75232983033" />
+
+- They return true only when every tag in **Tags** (and its parent chain) is valid for **Source Object**. The local variant always uses the local session.
+- Both return false when the world has no DependencySignalSubsystem (e.g. on a prohibited map).
+- Use them for one-off checks. To react to changes, use `Listen For Dependency Signal Validity`.
 
 **Wait for the object:** `Wait For Dependency Signal Object` waits until a tag is valid and outputs the object a provider resolves for it, so you don't need to call Get…Object yourself:
 
@@ -102,13 +117,20 @@ The built-in controller provider resolves `Controller`, `Controller.Pawn` and `C
 - **Source Object** None means the local session, as with the other nodes. The **Source** output tells which source the object belongs to (None: local session).
 - **Any Source** waits for the tag on every source instead of one, and fires **On Ready** and **On Lost** for each source. While it is checked, the node hides **Source Object** and locks **Keep Listening** on. Unchecking Any Source makes Keep Listening editable again.
 
-**Get the object:** for local UI, `Get Local Dependency Signal Object` uses the local context directly.
+**Get the object:** `Get Dependency Signal Object` and `Get Local Dependency Signal Object` resolve the object for a tag through the providers, right now:
 
 <img width="732" height="217" alt="Get Dependency Object Nodes" src="https://github.com/user-attachments/assets/2649cc9b-0c20-4fb6-bb9d-e08d80b966bf" />
 
-**Manage a stored listener handle**, e.g. to stop listening manually:
+- The **Return Value** takes the type selected on **Return Type**. If the resolved object is not of that class, the node returns None.
+- **Source Object** is the context the providers search from (None: local session). `Get Local Dependency Signal Object` always uses the local session and is meant for local UI. It is cosmetic, so it does not run on a dedicated server.
+- They don't check validity. Call them after the tag is valid, or use `Wait For Dependency Signal Object` to wait and resolve in one node.
+
+**Manage a stored listener handle:** `Is Valid Dependency Signal Listener Handle` and `Invalidate Dependency Signal Listener Handle` work with a handle stored from a registration:
 
 <img width="756" height="152" alt="Listener Handle Nodes" src="https://github.com/user-attachments/assets/47424483-666d-40e5-8347-aca1c72294a7" />
+
+- `Is Valid Dependency Signal Listener Handle` returns true while the handle refers to a registered listener.
+- `Invalidate Dependency Signal Listener Handle` unregisters the listener and resets the handle, e.g. to stop listening manually. Calling it on an invalid handle does nothing.
 
 ---
 
